@@ -15,6 +15,16 @@ type Config struct {
 	Environment           string
 	APIBasePath           string
 	EnableRequestLogging  bool
+
+	// Govee Smart Light Integration
+	// Primary API key from https://developer.govee.com
+	// Required to control Govee smart lights and devices
+	GoveeAPIKey           string
+
+	// Secondary Govee API key (optional)
+	// Used to access devices from a second Govee account (e.g., spouse's account)
+	// If set, devices from both accounts will be combined in the UI
+	GoveeAPIKeySecondary  string
 }
 
 // Load reads configuration from environment variables
@@ -29,6 +39,8 @@ func Load() (*Config, error) {
 		Environment:           getEnv("ENVIRONMENT", "development"),
 		APIBasePath:           getEnv("API_BASE_PATH", "/api"),
 		EnableRequestLogging:  getEnvAsBool("ENABLE_REQUEST_LOGGING", true),
+		GoveeAPIKey:           getEnv("GOVEE_API_KEY", ""),
+		GoveeAPIKeySecondary:  getEnv("GOVEE_API_KEY_SECONDARY", ""),
 	}
 
 	return cfg, nil
@@ -54,4 +66,21 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 // GetAddress returns the full address string for the server
 func (c *Config) GetAddress() string {
 	return fmt.Sprintf("%s:%s", c.Host, c.Port)
+}
+
+// Validate checks that all required configuration values are present
+// Returns an error if any critical configuration is missing
+func (c *Config) Validate() error {
+	// Check for Govee API key
+	// Get your API key from https://developer.govee.com
+	// 1. Sign up or log in with your Govee account
+	// 2. Navigate to "My Applications"
+	// 3. Click "Create Application"
+	// 4. Fill in application name and description
+	// 5. Copy the generated API key to .env file as GOVEE_API_KEY=your_key
+	if c.GoveeAPIKey == "" {
+		return fmt.Errorf("GOVEE_API_KEY is required but not set in .env file")
+	}
+
+	return nil
 }
