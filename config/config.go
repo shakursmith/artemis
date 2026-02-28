@@ -25,6 +25,25 @@ type Config struct {
 	// Used to access devices from a second Govee account (e.g., spouse's account)
 	// If set, devices from both accounts will be combined in the UI
 	GoveeAPIKeySecondary  string
+
+	// Fire TV Remote Integration
+	// URL of the Python Fire TV microservice that handles device communication.
+	// The Python service runs locally and uses the Android TV Remote protocol v2
+	// to discover, pair with, and control Fire TV devices on the LAN.
+	// Default: http://localhost:9090
+	FireTVServiceURL      string
+
+	// Wyze Camera Bridge Integration
+	// URL of the Docker Wyze Bridge web UI / REST API.
+	// The bridge runs as a Docker container and provides camera info at /api/
+	// and streams via HLS (port 8888), RTSP (port 8554), and WebRTC (port 8889).
+	// Default: http://localhost:5050
+	WyzeBridgeURL         string
+
+	// Optional API key for the Wyze Bridge.
+	// Only required if WB_AUTH is enabled on the bridge container.
+	// Must match the WYZE_BRIDGE_API_KEY set in the bridge's environment.
+	WyzeBridgeAPIKey      string
 }
 
 // Load reads configuration from environment variables
@@ -41,6 +60,9 @@ func Load() (*Config, error) {
 		EnableRequestLogging:  getEnvAsBool("ENABLE_REQUEST_LOGGING", true),
 		GoveeAPIKey:           getEnv("GOVEE_API_KEY", ""),
 		GoveeAPIKeySecondary:  getEnv("GOVEE_API_KEY_SECONDARY", ""),
+		FireTVServiceURL:      getEnv("FIRETV_SERVICE_URL", "http://localhost:9090"),
+		WyzeBridgeURL:         getEnv("WYZE_BRIDGE_URL", "http://localhost:5050"),
+		WyzeBridgeAPIKey:      getEnv("WYZE_BRIDGE_API_KEY", ""),
 	}
 
 	return cfg, nil

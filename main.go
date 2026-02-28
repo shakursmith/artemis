@@ -4,7 +4,9 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/pantheon/artemis/camera"
 	"github.com/pantheon/artemis/config"
+	"github.com/pantheon/artemis/firetv"
 	"github.com/pantheon/artemis/govee"
 	"github.com/pantheon/artemis/handlers"
 	"github.com/pantheon/artemis/middleware"
@@ -54,6 +56,46 @@ func main() {
 	// Query current state of a specific device
 	mux.HandleFunc(cfg.APIBasePath+"/govee/devices/state", handlers.HandleGetDeviceState(goveeClients))
 
+	// Fire TV Remote endpoints - control Fire TV devices via Python microservice
+	// Initialize the Fire TV client that communicates with the Python service
+	firetvClient := firetv.NewClient(cfg.FireTVServiceURL)
+	log.Printf("📺 Fire TV client initialized (service URL: %s)", cfg.FireTVServiceURL)
+
+	// Check if the Python Fire TV service is reachable (non-blocking warning)
+	if err := firetvClient.CheckHealth(); err != nil {
+		log.Printf("⚠️  Fire TV service not reachable: %v", err)
+		log.Printf("⚠️  Fire TV features will not work until the Python service is started")
+		log.Printf("⚠️  Start it with: cd ../firestick && uvicorn main:app --host 0.0.0.0 --port 9090")
+	} else {
+		log.Printf("📺 Fire TV service is healthy and reachable")
+	}
+
+	// Discover Fire TV devices on the local network
+	mux.HandleFunc(cfg.APIBasePath+"/firetv/discover", handlers.HandleFireTVDiscover(firetvClient))
+	// Pair with a Fire TV device (two-step PIN flow)
+	mux.HandleFunc(cfg.APIBasePath+"/firetv/pair", handlers.HandleFireTVPair(firetvClient))
+	// Send remote control commands to a paired Fire TV device
+	mux.HandleFunc(cfg.APIBasePath+"/firetv/command", handlers.HandleFireTVCommand(firetvClient))
+
+	// Wyze Camera Bridge endpoints - view live camera streams
+	// Initialize the camera client that communicates with Docker Wyze Bridge
+	cameraClient := camera.NewClient(cfg.WyzeBridgeURL, cfg.WyzeBridgeAPIKey)
+	log.Printf("📷 Camera client initialized (bridge URL: %s)", cfg.WyzeBridgeURL)
+
+	// Check if the Wyze Bridge is reachable (non-blocking warning)
+	if err := cameraClient.CheckHealth(); err != nil {
+		log.Printf("⚠️  Wyze Bridge not reachable: %v", err)
+		log.Printf("⚠️  Camera features will not work until Wyze Bridge is started")
+		log.Printf("⚠️  Start it with: cd .. && docker compose up -d")
+	} else {
+		log.Printf("📷 Wyze Bridge is healthy and reachable")
+	}
+
+	// List all cameras with status and stream URLs
+	mux.HandleFunc(cfg.APIBasePath+"/cameras", handlers.HandleGetCameras(cameraClient))
+	// Get stream URLs for a specific camera by name
+	mux.HandleFunc(cfg.APIBasePath+"/cameras/stream", handlers.HandleGetCameraStream(cameraClient))
+
 	// Health check endpoint - useful for monitoring server status
 	mux.HandleFunc(cfg.APIBasePath+"/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -79,6 +121,11 @@ func main() {
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)
 	log.Printf("   - POST %s/govee/devices/control - Control Govee device", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices/state - Query device state", cfg.APIBasePath)
+	log.Printf("   - GET  %s/firetv/discover - Discover Fire TV devices on LAN", cfg.APIBasePath)
+	log.Printf("   - POST %s/firetv/pair - Pair with a Fire TV device", cfg.APIBasePath)
+	log.Printf("   - POST %s/firetv/command - Send command to Fire TV", cfg.APIBasePath)
+	log.Printf("   - GET  %s/cameras - List Wyze cameras", cfg.APIBasePath)
+	log.Printf("   - GET  %s/cameras/stream - Get camera stream URLs", cfg.APIBasePath)
 	log.Printf("   - GET  %s/health - Health check", cfg.APIBasePath)
 
 	if err := http.ListenAndServe(cfg.GetAddress(), handler); err != nil {
