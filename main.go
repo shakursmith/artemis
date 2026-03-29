@@ -51,7 +51,45 @@ func main() {
 	log.Printf("📍 Server will be available at http://%s", cfg.GetAddress())
 
 	// Create a new HTTP mux (router)
+	// Uses Go 1.22+ enhanced pattern matching for path parameters ({id}, {profileId})
 	mux := http.NewServeMux()
+
+	// ==========================================================================
+	// Profile, Room & Device endpoints — CRUD for user management
+	// ==========================================================================
+
+	// Initialize handler structs with database dependency
+	profileHandler := handlers.NewProfileHandler(database)
+	roomHandler := handlers.NewRoomHandler(database)
+	deviceHandler := handlers.NewDeviceHandler(database)
+
+	// Profile endpoints
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile", profileHandler.HandleCreateProfile)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/profile/{id}", profileHandler.HandleGetProfile)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/profiles", profileHandler.HandleListProfiles)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/profile/{id}", profileHandler.HandleUpdateProfile)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/profile/{id}", profileHandler.HandleDeleteProfile)
+
+	// Room endpoints
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile/{profileId}/rooms", roomHandler.HandleCreateRoom)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/profile/{profileId}/rooms", roomHandler.HandleListRooms)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/room/{id}", roomHandler.HandleGetRoom)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/room/{id}", roomHandler.HandleUpdateRoom)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/room/{id}/beacon", roomHandler.HandleUpdateRoomBeacon)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/room/{id}", roomHandler.HandleDeleteRoom)
+
+	// Device endpoints
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile/{profileId}/devices", deviceHandler.HandleCreateDevice)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/profile/{profileId}/devices", deviceHandler.HandleListDevices)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/device/{id}", deviceHandler.HandleGetDevice)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/device/{id}", deviceHandler.HandleUpdateDevice)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/device/{id}/assign", deviceHandler.HandleAssignDevice)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/device/{id}/unassign", deviceHandler.HandleUnassignDevice)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/device/{id}", deviceHandler.HandleDeleteDevice)
+
+	// ==========================================================================
+	// Integration endpoints — External service control
+	// ==========================================================================
 
 	// Register API routes
 	// Lightbulb toggle endpoint - called when user taps the lightbulb in the app
@@ -126,6 +164,26 @@ func main() {
 	// Start the server
 	log.Printf("✅ Server is listening on %s", cfg.GetAddress())
 	log.Printf("📝 API endpoints:")
+	log.Printf("  Profile & Room Management:")
+	log.Printf("   - POST   %s/profile - Create profile", cfg.APIBasePath)
+	log.Printf("   - GET    %s/profile/{id} - Get profile (with rooms & devices)", cfg.APIBasePath)
+	log.Printf("   - GET    %s/profiles - List all profiles", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/profile/{id} - Update profile", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/profile/{id} - Delete profile (cascade)", cfg.APIBasePath)
+	log.Printf("   - POST   %s/profile/{id}/rooms - Create room", cfg.APIBasePath)
+	log.Printf("   - GET    %s/profile/{id}/rooms - List rooms", cfg.APIBasePath)
+	log.Printf("   - GET    %s/room/{id} - Get room (with devices)", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/room/{id} - Update room", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/room/{id}/beacon - Set beacon config", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/room/{id} - Delete room", cfg.APIBasePath)
+	log.Printf("   - POST   %s/profile/{id}/devices - Create device", cfg.APIBasePath)
+	log.Printf("   - GET    %s/profile/{id}/devices - List devices", cfg.APIBasePath)
+	log.Printf("   - GET    %s/device/{id} - Get device", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/device/{id} - Update device", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/device/{id}/assign - Assign device to room", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/device/{id}/unassign - Unassign device", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/device/{id} - Delete device", cfg.APIBasePath)
+	log.Printf("  Integrations:")
 	log.Printf("   - POST %s/lightbulb/toggle - Toggle lightbulb state", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)
 	log.Printf("   - POST %s/govee/devices/control - Control Govee device", cfg.APIBasePath)

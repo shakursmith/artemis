@@ -20,6 +20,13 @@ artemis/
 │   ├── repository.go   # CRUD operations for all entities
 │   └── repository_test.go  # 40 tests covering all operations
 ├── handlers/            # HTTP request handlers
+│   ├── helpers.go      # Shared JSON response utilities
+│   ├── profile.go      # Profile CRUD endpoints
+│   ├── room.go         # Room CRUD + beacon config endpoints
+│   ├── device.go       # Device CRUD + assign/unassign endpoints
+│   ├── profile_test.go # Profile handler tests
+│   ├── room_test.go    # Room handler tests
+│   ├── device_test.go  # Device handler tests
 │   ├── lightbulb.go    # Lightbulb toggle endpoint
 │   ├── govee.go        # Govee smart light endpoints
 │   ├── firetv.go       # Fire TV remote control endpoints
@@ -197,6 +204,65 @@ All configuration is managed through environment variables. Copy `.env.example` 
 
 ## API Endpoints
 
+### Profile, Room & Device Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/profile` | Create a new profile |
+| GET | `/api/profile/{id}` | Get profile with rooms and devices |
+| GET | `/api/profiles` | List all profiles |
+| PUT | `/api/profile/{id}` | Update profile name |
+| DELETE | `/api/profile/{id}` | Delete profile (cascades to rooms & devices) |
+| POST | `/api/profile/{profileId}/rooms` | Create a room |
+| GET | `/api/profile/{profileId}/rooms` | List rooms for a profile |
+| GET | `/api/room/{id}` | Get room with its devices |
+| PUT | `/api/room/{id}` | Update room name and icon |
+| PUT | `/api/room/{id}/beacon` | Set iBeacon config for a room |
+| DELETE | `/api/room/{id}` | Delete room (unassigns devices) |
+| POST | `/api/profile/{profileId}/devices` | Register a new device |
+| GET | `/api/profile/{profileId}/devices` | List devices for a profile |
+| GET | `/api/device/{id}` | Get a device |
+| PUT | `/api/device/{id}` | Update device name |
+| PUT | `/api/device/{id}/assign` | Assign device to a room |
+| PUT | `/api/device/{id}/unassign` | Remove device from room |
+| DELETE | `/api/device/{id}` | Delete a device |
+
+#### Example: Full onboarding flow via curl
+
+```bash
+# 1. Create a profile
+curl -s -X POST http://localhost:8080/api/profile \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "Shakur"}' | jq .
+
+# 2. Create rooms (use the profile ID from step 1)
+curl -s -X POST http://localhost:8080/api/profile/<PROFILE_ID>/rooms \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "Living Room", "icon": "sofa"}' | jq .
+
+curl -s -X POST http://localhost:8080/api/profile/<PROFILE_ID>/rooms \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "Office", "icon": "desktopcomputer"}' | jq .
+
+# 3. Register a device
+curl -s -X POST http://localhost:8080/api/profile/<PROFILE_ID>/devices \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "Desk Lamp", "deviceType": "govee_light", "model": "H6160"}' | jq .
+
+# 4. Assign device to a room
+curl -s -X PUT http://localhost:8080/api/device/<DEVICE_ID>/assign \
+  -H 'Content-Type: application/json' \
+  -d '{"roomId": "<ROOM_ID>"}' | jq .
+
+# 5. Set beacon config for a room
+curl -s -X PUT http://localhost:8080/api/room/<ROOM_ID>/beacon \
+  -H 'Content-Type: application/json' \
+  -d '{"uuid": "E2C56DB5-DFFB-48D2-B060-D0F5A71096E0", "major": 1, "minor": 1}' | jq .
+
+# 6. Get the full profile (enriched with rooms + devices)
+curl -s http://localhost:8080/api/profile/<PROFILE_ID> | jq .
+```
+
 ### Integration Endpoints
 
 | Method | Endpoint | Description |
@@ -241,13 +307,17 @@ Run all tests:
 go test ./...
 ```
 
-Run database tests with verbose output:
+Run specific test packages with verbose output:
 ```bash
-go test ./db/ -v
+go test ./db/ -v        # 40 DB repository tests
+go test ./handlers/ -v  # 50 HTTP handler tests
 ```
 
 Current test coverage:
 - `db/repository_test.go` — 40 tests covering all CRUD operations, cascade deletes, beacon configuration, device assignment, and full integration flows
+- `handlers/profile_test.go` — Profile handler tests (create, get enriched, list, update, delete, cascade)
+- `handlers/room_test.go` — Room handler tests (create, list, get enriched, update, beacon config, delete, unassign on delete)
+- `handlers/device_test.go` — Device handler tests (create, list, get, update, assign, unassign, delete, full lifecycle flow)
 
 ## Deployment
 
