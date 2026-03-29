@@ -15,8 +15,9 @@ const (
 	defaultBridgeURL = "http://localhost:5050"
 
 	// Endpoint on the Wyze Bridge that returns camera info.
-	// Returns a JSON object keyed by camera URI name.
-	bridgeAPIEndpoint = "/api/"
+	// IMPORTANT: No trailing slash — the bridge returns 404 for "/api/" but 200 for "/api".
+	// Returns a JSON object with a "cameras" key containing camera entries keyed by URI name.
+	bridgeAPIEndpoint = "/api"
 
 	// Timeout for HTTP requests to the bridge.
 	requestTimeout = 10 * time.Second
@@ -95,12 +96,31 @@ func (c *Client) GetCameras() ([]Camera, error) {
 		return nil, fmt.Errorf("bridge returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	// The bridge API returns a JSON object keyed by camera URI name.
-	// Each value contains camera metadata fields. We use a flexible map
-	// to handle varying response structures across bridge versions.
-	var bridgeResponse map[string]json.RawMessage
-	if err := json.Unmarshal(body, &bridgeResponse); err != nil {
+	// The bridge API returns a JSON object with a top-level "cameras" key.
+	// Inside "cameras" is an object keyed by camera URI name, each containing
+	// camera metadata. Example:
+	//   { "available": 1, "cameras": { "pet-cam": { ... } } }
+	//
+	// We first try parsing this nested structure. If "cameras" is missing
+	// (older bridge versions), fall back to treating the entire response as
+	// the camera map for backwards compatibility.
+	var envelope struct {
+		Cameras map[string]json.RawMessage `json:"cameras"`
+	}
+	cameraMap := make(map[string]json.RawMessage)
+
+	if err := json.Unmarshal(body, &envelope); err != nil {
 		return nil, fmt.Errorf("failed to parse bridge response: %w", err)
+	}
+
+	if envelope.Cameras != nil {
+		// Modern bridge response — cameras nested under "cameras" key.
+		cameraMap = envelope.Cameras
+	} else {
+		// Fallback for older bridge versions — top-level is the camera map.
+		if err := json.Unmarshal(body, &cameraMap); err != nil {
+			return nil, fmt.Errorf("failed to parse bridge response (fallback): %w", err)
+		}
 	}
 
 	// Extract the bridge host from the URL for constructing stream URLs.
@@ -109,7 +129,7 @@ func (c *Client) GetCameras() ([]Camera, error) {
 
 	// Transform each camera entry into our Camera model.
 	var cameras []Camera
-	for nameURI, rawData := range bridgeResponse {
+	for nameURI, rawData := range cameraMap {
 		camera := c.parseCameraEntry(nameURI, rawData, bridgeHost)
 		cameras = append(cameras, camera)
 	}
