@@ -6,6 +6,7 @@ import (
 
 	"github.com/pantheon/artemis/camera"
 	"github.com/pantheon/artemis/config"
+	"github.com/pantheon/artemis/db"
 	"github.com/pantheon/artemis/firetv"
 	"github.com/pantheon/artemis/govee"
 	"github.com/pantheon/artemis/handlers"
@@ -23,6 +24,14 @@ func main() {
 	if err := cfg.Validate(); err != nil {
 		log.Fatalf("Configuration validation failed: %v", err)
 	}
+
+	// Initialize SQLite database for profile, room, and device storage
+	database, err := db.InitDB(cfg.DBPath)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer database.Close()
+	log.Printf("🗄️  Database ready at %s", cfg.DBPath)
 
 	// Initialize Govee API clients for controlling smart lights
 	// Create primary client (required)

@@ -32,5 +32,10 @@ go.work
 /dist/
 /artemis
 
+# SQLite database files
+*.db
+*.db-wal
+*.db-shm
+
 # Dependency directories
 vendor/

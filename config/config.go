@@ -44,6 +44,12 @@ type Config struct {
 	// Only required if WB_AUTH is enabled on the bridge container.
 	// Must match the WYZE_BRIDGE_API_KEY set in the bridge's environment.
 	WyzeBridgeAPIKey      string
+
+	// Database Configuration
+	// Path to the SQLite database file for storing profiles, rooms, and devices.
+	// Use ":memory:" for an ephemeral in-memory database (useful for testing).
+	// Default: ./pantheon.db
+	DBPath                string
 }
 
 // Load reads configuration from environment variables
@@ -63,6 +69,7 @@ func Load() (*Config, error) {
 		FireTVServiceURL:      getEnv("FIRETV_SERVICE_URL", "http://localhost:9090"),
 		WyzeBridgeURL:         getEnv("WYZE_BRIDGE_URL", "http://localhost:5050"),
 		WyzeBridgeAPIKey:      getEnv("WYZE_BRIDGE_API_KEY", ""),
+		DBPath:                getEnv("DB_PATH", "./pantheon.db"),
 	}
 
 	return cfg, nil
