@@ -23,9 +23,11 @@ artemis/
 │   ├── helpers.go      # Shared JSON response utilities
 │   ├── profile.go      # Profile CRUD endpoints
 │   ├── room.go         # Room CRUD + beacon config endpoints
+│   ├── room_template.go # Room scene template endpoint
 │   ├── device.go       # Device CRUD + assign/unassign endpoints
 │   ├── profile_test.go # Profile handler tests
 │   ├── room_test.go    # Room handler tests
+│   ├── room_template_test.go # Room template handler tests
 │   ├── device_test.go  # Device handler tests
 │   ├── lightbulb.go    # Lightbulb toggle endpoint
 │   ├── govee.go        # Govee smart light endpoints
@@ -218,6 +220,7 @@ All configuration is managed through environment variables. Copy `.env.example` 
 | GET | `/api/room/{id}` | Get room with its devices |
 | PUT | `/api/room/{id}` | Update room name and icon |
 | PUT | `/api/room/{id}/beacon` | Set iBeacon config for a room |
+| GET | `/api/room/{id}/template` | Get default room scene template |
 | DELETE | `/api/room/{id}` | Delete room (unassigns devices) |
 | POST | `/api/profile/{profileId}/devices` | Register a new device |
 | GET | `/api/profile/{profileId}/devices` | List devices for a profile |
@@ -310,7 +313,7 @@ go test ./...
 Run specific test packages with verbose output:
 ```bash
 go test ./db/ -v        # 40 DB repository tests
-go test ./handlers/ -v  # 50 HTTP handler tests
+go test ./handlers/ -v  # 58 HTTP handler tests
 ```
 
 Current test coverage:
@@ -318,6 +321,7 @@ Current test coverage:
 - `handlers/profile_test.go` — Profile handler tests (create, get enriched, list, update, delete, cascade)
 - `handlers/room_test.go` — Room handler tests (create, list, get enriched, update, beacon config, delete, unassign on delete)
 - `handlers/device_test.go` — Device handler tests (create, list, get, update, assign, unassign, delete, full lifecycle flow)
+- `handlers/room_template_test.go` — Room template handler tests (living room, office, unknown room type, not found, description field)
 
 ## Deployment
 

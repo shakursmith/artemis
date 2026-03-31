@@ -62,6 +62,7 @@ func main() {
 	profileHandler := handlers.NewProfileHandler(database)
 	roomHandler := handlers.NewRoomHandler(database)
 	deviceHandler := handlers.NewDeviceHandler(database)
+	roomTemplateHandler := handlers.NewRoomTemplateHandler(database)
 
 	// Profile endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile", profileHandler.HandleCreateProfile)
@@ -77,6 +78,7 @@ func main() {
 	mux.HandleFunc("PUT "+cfg.APIBasePath+"/room/{id}", roomHandler.HandleUpdateRoom)
 	mux.HandleFunc("PUT "+cfg.APIBasePath+"/room/{id}/beacon", roomHandler.HandleUpdateRoomBeacon)
 	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/room/{id}", roomHandler.HandleDeleteRoom)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/room/{id}/template", roomTemplateHandler.HandleGetRoomTemplate)
 
 	// Device endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile/{profileId}/devices", deviceHandler.HandleCreateDevice)
@@ -176,6 +178,7 @@ func main() {
 	log.Printf("   - PUT    %s/room/{id} - Update room", cfg.APIBasePath)
 	log.Printf("   - PUT    %s/room/{id}/beacon - Set beacon config", cfg.APIBasePath)
 	log.Printf("   - DELETE %s/room/{id} - Delete room", cfg.APIBasePath)
+	log.Printf("   - GET    %s/room/{id}/template - Get room scene template", cfg.APIBasePath)
 	log.Printf("   - POST   %s/profile/{id}/devices - Create device", cfg.APIBasePath)
 	log.Printf("   - GET    %s/profile/{id}/devices - List devices", cfg.APIBasePath)
 	log.Printf("   - GET    %s/device/{id} - Get device", cfg.APIBasePath)
