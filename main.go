@@ -145,6 +145,17 @@ func main() {
 	// Get stream URLs for a specific camera by name
 	mux.HandleFunc(cfg.APIBasePath+"/cameras/stream", handlers.HandleGetCameraStream(cameraClient))
 
+	// ==========================================================================
+	// Diagnostics endpoints — Beacon signal data capture for tuning
+	// ==========================================================================
+
+	diagnosticsHandler := handlers.NewDiagnosticsHandler("./diagnostics")
+
+	// Submit a beacon diagnostic report (from iOS app during test sessions)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/diagnostics/beacon-report", diagnosticsHandler.HandleSubmitBeaconReport)
+	// List existing beacon diagnostic reports
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/diagnostics/beacon-reports", diagnosticsHandler.HandleListBeaconReports)
+
 	// Health check endpoint - useful for monitoring server status
 	mux.HandleFunc(cfg.APIBasePath+"/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -196,6 +207,9 @@ func main() {
 	log.Printf("   - POST %s/firetv/command - Send command to Fire TV", cfg.APIBasePath)
 	log.Printf("   - GET  %s/cameras - List Wyze cameras", cfg.APIBasePath)
 	log.Printf("   - GET  %s/cameras/stream - Get camera stream URLs", cfg.APIBasePath)
+	log.Printf("  Diagnostics:")
+	log.Printf("   - POST %s/diagnostics/beacon-report - Submit beacon diagnostic report", cfg.APIBasePath)
+	log.Printf("   - GET  %s/diagnostics/beacon-reports - List beacon diagnostic reports", cfg.APIBasePath)
 	log.Printf("   - GET  %s/health - Health check", cfg.APIBasePath)
 
 	if err := http.ListenAndServe(cfg.GetAddress(), handler); err != nil {
