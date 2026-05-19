@@ -1,0 +1,742 @@
+{
+  "appConfig": {
+    "bufferSize": 5,
+    "ignoreFarReadings": false,
+    "switchThreshold": 3
+  },
+  "beaconHardwareNotes": "TX: 0dbm, interval 300ms, rssi at 1m: -75 ",
+  "readings": [
+    {
+      "beacons": [
+        {
+          "accuracy": 2.156886134572932,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -80,
+          "smoothed": 2.0062480480657743
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:39.141Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.4327352263993204,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -70,
+          "smoothed": 0.33583662876045245
+        },
+        {
+          "accuracy": 1.5874595019744788,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -75,
+          "smoothed": 1.9714529770445453
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:40.145Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.5060220279619123,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -70,
+          "smoothed": 0.3566519251577497
+        },
+        {
+          "accuracy": 1.2819754750498373,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -74,
+          "smoothed": 1.851515483897586
+        },
+        {
+          "accuracy": 6.096201464088194,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -89,
+          "smoothed": 6.046437371687153
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:41.140Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.586733296347969,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -72,
+          "smoothed": 0.42232110716344023
+        },
+        {
+          "accuracy": 5.820141713479765,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -88,
+          "smoothed": 5.959957204177373
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:42.146Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.6263121710536086,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -72,
+          "smoothed": 0.502719079922481
+        },
+        {
+          "accuracy": 1.3328595442016271,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -78,
+          "smoothed": 1.7408956133256144
+        },
+        {
+          "accuracy": 5.4714909137391485,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -87,
+          "smoothed": 5.896372890220087
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:43.152Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 1.2360222445101336,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -76,
+          "smoothed": 1.5190405800618016
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:44.145Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.6814665868400475,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -73,
+          "smoothed": 0.5666538617205716
+        },
+        {
+          "accuracy": 1.1360077388861143,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -75,
+          "smoothed": 1.3148649009244384
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:45.144Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.8930608647696335,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -76,
+          "smoothed": 0.6587189893946341
+        },
+        {
+          "accuracy": 5.7198713015323,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -90,
+          "smoothed": 5.845321933165047
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:46.140Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.9860342341743387,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -76,
+          "smoothed": 0.7547214306371195
+        },
+        {
+          "accuracy": 5.794084499353923,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -89,
+          "smoothed": 5.780357978438667
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:47.143Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 5.840315990497871,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -89,
+          "smoothed": 5.729180883720602
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:48.145Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 1.4584309750839737,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -84,
+          "smoothed": 1.2890591955463373
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:49.145Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.5449904121602379,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -66,
+          "smoothed": 0.7463728537995732
+        },
+        {
+          "accuracy": 2.1772494401729756,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -83,
+          "smoothed": 1.4681139885709649
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:50.145Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.4338823696056251,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -68,
+          "smoothed": 0.7078868935099765
+        },
+        {
+          "accuracy": 2.40550510523331,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -83,
+          "smoothed": 1.6826431007773013
+        },
+        {
+          "accuracy": 6.158677760797345,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -91,
+          "smoothed": 5.796888093184117
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:51.141Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.5097847063030219,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -71,
+          "smoothed": 0.6735505174025714
+        },
+        {
+          "accuracy": 6.352495823355602,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -90,
+          "smoothed": 5.973089075107408
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:52.143Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 1.5178874000833191,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -74,
+          "smoothed": 1.7390161318919386
+        },
+        {
+          "accuracy": 6.256657708263435,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -89,
+          "smoothed": 6.080446356453636
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:53.142Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 1.3210345246062756,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -76,
+          "smoothed": 1.776021489035971
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:54.140Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.42609105066554653,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -67,
+          "smoothed": 0.580156554581754
+        },
+        {
+          "accuracy": 1.7181544406862255,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -85,
+          "smoothed": 1.827966182156421
+        },
+        {
+          "accuracy": 6.371904316372791,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -90,
+          "smoothed": 6.196010319857409
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:55.142Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.3706285600969273,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -67,
+          "smoothed": 0.45707541976627175
+        },
+        {
+          "accuracy": 2.060951952631217,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -85,
+          "smoothed": 1.8047066846480697
+        },
+        {
+          "accuracy": 6.476256514671743,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -90,
+          "smoothed": 6.323198424692183
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:56.145Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.36466646965073823,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -67,
+          "smoothed": 0.42101063126437177
+        },
+        {
+          "accuracy": 6.546231049224192,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -90,
+          "smoothed": 6.400709082377553
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:57.146Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.3624726818930736,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -67,
+          "smoothed": 0.4067286937218615
+        },
+        {
+          "accuracy": 2.3492693191803484,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -85,
+          "smoothed": 1.7934595274374772
+        },
+        {
+          "accuracy": 6.5949375144697004,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -90,
+          "smoothed": 6.449197420600373
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:58.149Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 1.9717049543005982,
+          "minor": 3,
+          "proximity": "far",
+          "room": "Living Room",
+          "rssi": -78,
+          "smoothed": 1.884223038280933
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:46:59.147Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.3113563855525851,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Office",
+          "rssi": -64,
+          "smoothed": 0.3670430295717742
+        },
+        {
+          "accuracy": 1.4061794327843,
+          "minor": 3,
+          "proximity": "far",
+          "room": "Living Room",
+          "rssi": -73,
+          "smoothed": 1.901252019916538
+        },
+        {
+          "accuracy": 6.487424676797663,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -89,
+          "smoothed": 6.495350814307218
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:47:00.145Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.37686067801154,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Office",
+          "rssi": -71,
+          "smoothed": 0.3571969550409728
+        },
+        {
+          "accuracy": 1.189292084685999,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -73,
+          "smoothed": 1.7954795487164925
+        },
+        {
+          "accuracy": 6.407067433121492,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -89,
+          "smoothed": 6.502383437656958
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:47:01.142Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.4598650765924166,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -75,
+          "smoothed": 0.3750442583400707
+        },
+        {
+          "accuracy": 6.348369511589473,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -89,
+          "smoothed": 6.476806037040504
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:47:02.140Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 1.2080029587357701,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -77,
+          "smoothed": 1.624889749937403
+        },
+        {
+          "accuracy": 6.303517597781546,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -89,
+          "smoothed": 6.428263346751976
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:47:03.144Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 1.2240258350276125,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -77,
+          "smoothed": 1.399841053106856
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:47:04.145Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.43018315022383874,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -67,
+          "smoothed": 0.38814759445469077
+        },
+        {
+          "accuracy": 1.1770627572544115,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -75,
+          "smoothed": 1.2409126136976185
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:47:05.146Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.4425073440606055,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -69,
+          "smoothed": 0.4041545268881972
+        },
+        {
+          "accuracy": 1.1941871313347983,
+          "minor": 3,
+          "proximity": "near",
+          "room": "Living Room",
+          "rssi": -77,
+          "smoothed": 1.1985141534077184
+        },
+        {
+          "accuracy": 6.268052740264444,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -89,
+          "smoothed": 6.362886391910925
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:47:06.147Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.46465025840253577,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -70,
+          "smoothed": 0.4348133014581873
+        },
+        {
+          "accuracy": 6.32826421916201,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -90,
+          "smoothed": 6.331054300383793
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:47:07.145Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.4158449751017333,
+          "minor": 1,
+          "proximity": "near",
+          "room": "Office",
+          "rssi": -66,
+          "smoothed": 0.442610160876226
+        },
+        {
+          "accuracy": 6.377499691256434,
+          "minor": 2,
+          "proximity": "far",
+          "room": "Bedroom",
+          "rssi": -90,
+          "smoothed": 6.32514075201078
+        }
+      ],
+      "currentRoom": "Office",
+      "t": "2026-05-19T04:47:08.142Z"
+    }
+  ],
+  "roomSwitchEvents": [],
+  "rooms": [
+    {
+      "minor": 3,
+      "name": "Living Room"
+    },
+    {
+      "minor": 1,
+      "name": "Office"
+    },
+    {
+      "minor": 2,
+      "name": "Bedroom"
+    }
+  ],
+  "session": {
+    "description": "Phone stationary on office desk about 3-5 feet away from beacon",
+    "durationSeconds": 30,
+    "endTime": "2026-05-19T04:47:08.660Z",
+    "expectedRoom": "Office",
+    "id": "BC75936A-97E2-46CF-8372-0705E1E69EDE",
+    "startTime": "2026-05-19T04:46:38.658Z"
+  },
+  "summary": {
+    "perBeacon": {
+      "Bedroom": {
+        "avgAccuracy": 6.2,
+        "avgRssi": -89.4,
+        "maxAccuracy": 6.59,
+        "minAccuracy": 5.47,
+        "readingCount": 20
+      },
+      "Living Room": {
+        "avgAccuracy": 1.58,
+        "avgRssi": -78.2,
+        "maxAccuracy": 2.41,
+        "minAccuracy": 1.14,
+        "readingCount": 21
+      },
+      "Office": {
+        "avgAccuracy": 0.51,
+        "avgRssi": -69.7,
+        "maxAccuracy": 0.99,
+        "minAccuracy": 0.31,
+        "readingCount": 21
+      }
+    },
+    "stability": {
+      "expectedRoom": "Office",
+      "falseSwitches": 0,
+      "percentInExpectedRoom": 100,
+      "percentInOtherRooms": 0
+    },
+    "totalReadingCycles": 30,
+    "totalRoomSwitches": 0
+  }
+}
