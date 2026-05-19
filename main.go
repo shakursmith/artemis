@@ -33,6 +33,15 @@ func main() {
 	defer database.Close()
 	log.Printf("🗄️  Database ready at %s", cfg.DBPath)
 
+	// Seed dev data if enabled — populates profile, rooms, devices, and beacon configs
+	// so you don't have to manually re-add everything after a rebuild.
+	// Set SEED_DEV_DATA=true in your .env file to enable.
+	if cfg.SeedDevData {
+		if err := db.SeedDevData(database); err != nil {
+			log.Fatalf("Failed to seed dev data: %v", err)
+		}
+	}
+
 	// Initialize Govee API clients for controlling smart lights
 	// Create primary client (required)
 	goveeClients := []*govee.Client{

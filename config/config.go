@@ -50,6 +50,13 @@ type Config struct {
 	// Use ":memory:" for an ephemeral in-memory database (useful for testing).
 	// Default: ./pantheon.db
 	DBPath                string
+
+	// Dev Seed Data
+	// When true, automatically populates the database with local dev configuration
+	// (profile, rooms, devices, beacon configs) on startup if not already present.
+	// This saves you from manually re-adding everything through the app after a rebuild.
+	// Default: false
+	SeedDevData           bool
 }
 
 // Load reads configuration from environment variables
@@ -70,6 +77,7 @@ func Load() (*Config, error) {
 		WyzeBridgeURL:         getEnv("WYZE_BRIDGE_URL", "http://localhost:5050"),
 		WyzeBridgeAPIKey:      getEnv("WYZE_BRIDGE_API_KEY", ""),
 		DBPath:                getEnv("DB_PATH", "./pantheon.db"),
+		SeedDevData:           getEnvAsBool("SEED_DEV_DATA", false),
 	}
 
 	return cfg, nil
