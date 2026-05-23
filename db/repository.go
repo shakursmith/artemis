@@ -169,8 +169,8 @@ func CreateRoom(db *sql.DB, profileID, name, icon string) (*Room, error) {
 func GetRoom(db *sql.DB, id string) (*Room, error) {
 	var r Room
 	err := db.QueryRow(
-		"SELECT id, profile_id, name, icon, beacon_uuid, beacon_major, beacon_minor, created_at, updated_at FROM rooms WHERE id = ?", id,
-	).Scan(&r.ID, &r.ProfileID, &r.Name, &r.Icon, &r.BeaconUUID, &r.BeaconMajor, &r.BeaconMinor, &r.CreatedAt, &r.UpdatedAt)
+		"SELECT id, profile_id, name, icon, beacon_uuid, beacon_major, beacon_minor, custom_template, created_at, updated_at FROM rooms WHERE id = ?", id,
+	).Scan(&r.ID, &r.ProfileID, &r.Name, &r.Icon, &r.BeaconUUID, &r.BeaconMajor, &r.BeaconMinor, &r.CustomTemplate, &r.CreatedAt, &r.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("room not found: %s", id)
 	}
@@ -183,7 +183,7 @@ func GetRoom(db *sql.DB, id string) (*Room, error) {
 // ListRoomsByProfile returns all rooms belonging to a profile, ordered by creation time.
 func ListRoomsByProfile(db *sql.DB, profileID string) ([]Room, error) {
 	rows, err := db.Query(
-		"SELECT id, profile_id, name, icon, beacon_uuid, beacon_major, beacon_minor, created_at, updated_at FROM rooms WHERE profile_id = ? ORDER BY created_at ASC",
+		"SELECT id, profile_id, name, icon, beacon_uuid, beacon_major, beacon_minor, custom_template, created_at, updated_at FROM rooms WHERE profile_id = ? ORDER BY created_at ASC",
 		profileID,
 	)
 	if err != nil {
@@ -194,7 +194,7 @@ func ListRoomsByProfile(db *sql.DB, profileID string) ([]Room, error) {
 	var rooms []Room
 	for rows.Next() {
 		var r Room
-		if err := rows.Scan(&r.ID, &r.ProfileID, &r.Name, &r.Icon, &r.BeaconUUID, &r.BeaconMajor, &r.BeaconMinor, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.ProfileID, &r.Name, &r.Icon, &r.BeaconUUID, &r.BeaconMajor, &r.BeaconMinor, &r.CustomTemplate, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan room row: %w", err)
 		}
 		rooms = append(rooms, r)
@@ -240,6 +240,44 @@ func UpdateRoomBeacon(db *sql.DB, id string, uuid string, major, minor int) (*Ro
 	}
 
 	return GetRoom(db, id)
+}
+
+// SaveRoomTemplate saves a user-customized scene layout JSON for a room.
+// The template JSON is stored as a TEXT blob in the custom_template column.
+func SaveRoomTemplate(db *sql.DB, roomID string, templateJSON string) error {
+	now := time.Now().UTC()
+	result, err := db.Exec(
+		"UPDATE rooms SET custom_template = ?, updated_at = ? WHERE id = ?",
+		templateJSON, now, roomID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to save room template: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("room not found: %s", roomID)
+	}
+	return nil
+}
+
+// ClearRoomTemplate removes a user's custom template, reverting to the default.
+// Sets custom_template to NULL so HandleGetRoomTemplate falls through to the default.
+func ClearRoomTemplate(db *sql.DB, roomID string) error {
+	now := time.Now().UTC()
+	result, err := db.Exec(
+		"UPDATE rooms SET custom_template = NULL, updated_at = ? WHERE id = ?",
+		now, roomID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to clear room template: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("room not found: %s", roomID)
+	}
+	return nil
 }
 
 // DeleteRoom removes a room. Devices assigned to this room will have

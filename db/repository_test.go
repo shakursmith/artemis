@@ -805,3 +805,89 @@ func TestDeviceReassignment(t *testing.T) {
 		t.Errorf("expected 1 device in room2, got %d", len(r2Devices))
 	}
 }
+
+// =============================================================================
+// Custom Template Tests
+// =============================================================================
+
+// TestSaveRoomTemplate verifies saving and retrieving a custom template via GetRoom.
+func TestSaveRoomTemplate(t *testing.T) {
+	database := setupTestDB(t)
+
+	profile, _ := CreateProfile(database, "Shakur")
+	room, _ := CreateRoom(database, profile.ID, "Office", "desktopcomputer")
+
+	// Save a custom template.
+	templateJSON := `{"id":"custom_office","name":"My Office","backgroundColor":"#AABB00","elements":[]}`
+	err := SaveRoomTemplate(database, room.ID, templateJSON)
+	if err != nil {
+		t.Fatalf("expected no error saving template, got: %v", err)
+	}
+
+	// Fetch the room and check the custom template is populated.
+	fetched, err := GetRoom(database, room.ID)
+	if err != nil {
+		t.Fatalf("expected no error fetching room, got: %v", err)
+	}
+	if fetched.CustomTemplate == nil {
+		t.Fatal("expected custom_template to be non-nil after save")
+	}
+	if *fetched.CustomTemplate != templateJSON {
+		t.Errorf("expected template JSON to match, got '%s'", *fetched.CustomTemplate)
+	}
+}
+
+// TestClearRoomTemplate verifies clearing a custom template sets it back to nil.
+func TestClearRoomTemplate(t *testing.T) {
+	database := setupTestDB(t)
+
+	profile, _ := CreateProfile(database, "Shakur")
+	room, _ := CreateRoom(database, profile.ID, "Bedroom", "bed.double")
+
+	// Save then clear.
+	SaveRoomTemplate(database, room.ID, `{"id":"custom","name":"Custom","backgroundColor":"#000","elements":[]}`)
+	err := ClearRoomTemplate(database, room.ID)
+	if err != nil {
+		t.Fatalf("expected no error clearing template, got: %v", err)
+	}
+
+	// Fetch and verify it's nil.
+	fetched, _ := GetRoom(database, room.ID)
+	if fetched.CustomTemplate != nil {
+		t.Errorf("expected custom_template to be nil after clear, got '%s'", *fetched.CustomTemplate)
+	}
+}
+
+// TestCustomTemplateInRoomList verifies ListRoomsByProfile includes custom_template.
+func TestCustomTemplateInRoomList(t *testing.T) {
+	database := setupTestDB(t)
+
+	profile, _ := CreateProfile(database, "Shakur")
+	room, _ := CreateRoom(database, profile.ID, "Living Room", "sofa")
+	templateJSON := `{"id":"custom_lr","name":"My Living Room","backgroundColor":"#FFF","elements":[]}`
+	SaveRoomTemplate(database, room.ID, templateJSON)
+
+	// Create a second room without a custom template.
+	CreateRoom(database, profile.ID, "Garage", "car")
+
+	rooms, err := ListRoomsByProfile(database, profile.ID)
+	if err != nil {
+		t.Fatalf("expected no error listing rooms, got: %v", err)
+	}
+
+	if len(rooms) != 2 {
+		t.Fatalf("expected 2 rooms, got %d", len(rooms))
+	}
+
+	// First room (Living Room) should have the custom template.
+	if rooms[0].CustomTemplate == nil {
+		t.Error("expected first room to have custom_template set")
+	} else if *rooms[0].CustomTemplate != templateJSON {
+		t.Errorf("expected custom template to match, got '%s'", *rooms[0].CustomTemplate)
+	}
+
+	// Second room (Garage) should have nil custom template.
+	if rooms[1].CustomTemplate != nil {
+		t.Error("expected second room to have nil custom_template")
+	}
+}

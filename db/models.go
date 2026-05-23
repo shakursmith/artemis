@@ -17,15 +17,16 @@ type Profile struct {
 // Rooms belong to a profile and can optionally have BLE beacon configuration
 // for automatic proximity-based detection.
 type Room struct {
-	ID          string  `json:"id"`
-	ProfileID   string  `json:"profileId"`
-	Name        string  `json:"name"`
-	Icon        string  `json:"icon"`                    // SF Symbol name for the room icon
-	BeaconUUID  *string `json:"beaconUuid,omitempty"`    // iBeacon proximity UUID
-	BeaconMajor *int    `json:"beaconMajor,omitempty"`   // iBeacon major value
-	BeaconMinor *int    `json:"beaconMinor,omitempty"`   // iBeacon minor value
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID             string  `json:"id"`
+	ProfileID      string  `json:"profileId"`
+	Name           string  `json:"name"`
+	Icon           string  `json:"icon"`                       // SF Symbol name for the room icon
+	BeaconUUID     *string `json:"beaconUuid,omitempty"`       // iBeacon proximity UUID
+	BeaconMajor    *int    `json:"beaconMajor,omitempty"`      // iBeacon major value
+	BeaconMinor    *int    `json:"beaconMinor,omitempty"`      // iBeacon minor value
+	CustomTemplate *string `json:"customTemplate,omitempty"`   // User-customized scene layout JSON
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
 // Device represents a smart device the user has registered.
