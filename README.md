@@ -25,10 +25,14 @@ artemis/
 │   ├── room.go         # Room CRUD + beacon config endpoints
 │   ├── room_template.go # Room scene template endpoint
 │   ├── device.go       # Device CRUD + assign/unassign endpoints
+│   ├── device_control.go # Generic device toggle (tap-to-toggle from room scene)
+│   ├── diagnostics.go  # Beacon diagnostic report endpoints
 │   ├── profile_test.go # Profile handler tests
 │   ├── room_test.go    # Room handler tests
 │   ├── room_template_test.go # Room template handler tests
 │   ├── device_test.go  # Device handler tests
+│   ├── device_control_test.go # Device toggle handler tests
+│   ├── diagnostics_test.go # Diagnostics handler tests
 │   ├── lightbulb.go    # Lightbulb toggle endpoint
 │   ├── govee.go        # Govee smart light endpoints
 │   ├── firetv.go       # Fire TV remote control endpoints
@@ -229,6 +233,7 @@ All configuration is managed through environment variables. Copy `.env.example` 
 | PUT | `/api/device/{id}/assign` | Assign device to a room |
 | PUT | `/api/device/{id}/unassign` | Remove device from room |
 | DELETE | `/api/device/{id}` | Delete a device |
+| POST | `/api/device/{id}/toggle` | Toggle device on/off (routes to correct integration) |
 
 #### Example: Full onboarding flow via curl
 
