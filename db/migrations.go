@@ -1,6 +1,10 @@
 package db
 
-import "database/sql"
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+)
 
 // migrations is the ordered list of SQL statements to run when initializing the database.
 // Each migration creates a table if it doesn't already exist, making it safe to run
@@ -54,11 +58,31 @@ var migrations = []string{
 
 // RunMigrations executes all schema migrations against the given database connection.
 // Safe to call on every startup since all statements use IF NOT EXISTS.
+// Also runs ALTER TABLE migrations for adding new columns to existing tables.
 func RunMigrations(db *sql.DB) error {
 	for _, migration := range migrations {
 		if _, err := db.Exec(migration); err != nil {
 			return err
 		}
 	}
+
+	// Additive column migrations — safe to re-run because we ignore
+	// "duplicate column name" errors from SQLite.
+	alterMigrations := []string{
+		// custom_template stores user-customized room scene layouts as JSON text.
+		// Added in Prompt 12 for the scene editor feature.
+		`ALTER TABLE rooms ADD COLUMN custom_template TEXT`,
+	}
+	for _, alter := range alterMigrations {
+		_, err := db.Exec(alter)
+		if err != nil {
+			// SQLite returns "duplicate column name" if the column already exists.
+			// This is expected on subsequent startups — safe to ignore.
+			if !strings.Contains(err.Error(), "duplicate column name") {
+				return fmt.Errorf("failed to run alter migration: %w", err)
+			}
+		}
+	}
+
 	return nil
 }

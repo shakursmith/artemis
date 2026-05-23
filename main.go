@@ -88,6 +88,8 @@ func main() {
 	mux.HandleFunc("PUT "+cfg.APIBasePath+"/room/{id}/beacon", roomHandler.HandleUpdateRoomBeacon)
 	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/room/{id}", roomHandler.HandleDeleteRoom)
 	mux.HandleFunc("GET "+cfg.APIBasePath+"/room/{id}/template", roomTemplateHandler.HandleGetRoomTemplate)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/room/{id}/template", roomTemplateHandler.HandleSaveRoomTemplate)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/room/{id}/template", roomTemplateHandler.HandleDeleteRoomTemplate)
 
 	// Device endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile/{profileId}/devices", deviceHandler.HandleCreateDevice)
@@ -97,6 +99,12 @@ func main() {
 	mux.HandleFunc("PUT "+cfg.APIBasePath+"/device/{id}/assign", deviceHandler.HandleAssignDevice)
 	mux.HandleFunc("PUT "+cfg.APIBasePath+"/device/{id}/unassign", deviceHandler.HandleUnassignDevice)
 	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/device/{id}", deviceHandler.HandleDeleteDevice)
+
+	// Device control — generic toggle endpoint used by tap-to-toggle in the room scene.
+	// Looks up the device by UUID, determines its type, and dispatches the toggle command
+	// to the appropriate integration (Govee API, Fire TV, etc.).
+	deviceControlHandler := handlers.NewDeviceControlHandler(database, goveeClients)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/device/{id}/toggle", deviceControlHandler.HandleToggleDevice)
 
 	// ==========================================================================
 	// Integration endpoints — External service control
@@ -199,6 +207,8 @@ func main() {
 	log.Printf("   - PUT    %s/room/{id}/beacon - Set beacon config", cfg.APIBasePath)
 	log.Printf("   - DELETE %s/room/{id} - Delete room", cfg.APIBasePath)
 	log.Printf("   - GET    %s/room/{id}/template - Get room scene template", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/room/{id}/template - Save custom room template", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/room/{id}/template - Reset room template to default", cfg.APIBasePath)
 	log.Printf("   - POST   %s/profile/{id}/devices - Create device", cfg.APIBasePath)
 	log.Printf("   - GET    %s/profile/{id}/devices - List devices", cfg.APIBasePath)
 	log.Printf("   - GET    %s/device/{id} - Get device", cfg.APIBasePath)
@@ -206,6 +216,7 @@ func main() {
 	log.Printf("   - PUT    %s/device/{id}/assign - Assign device to room", cfg.APIBasePath)
 	log.Printf("   - PUT    %s/device/{id}/unassign - Unassign device", cfg.APIBasePath)
 	log.Printf("   - DELETE %s/device/{id} - Delete device", cfg.APIBasePath)
+	log.Printf("   - POST   %s/device/{id}/toggle - Toggle device on/off", cfg.APIBasePath)
 	log.Printf("  Integrations:")
 	log.Printf("   - POST %s/lightbulb/toggle - Toggle lightbulb state", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)
