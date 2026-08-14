@@ -397,3 +397,121 @@ func TestSetColor_WrongDeviceType(t *testing.T) {
 		t.Errorf("expected device type error, got: %s", w.Body.String())
 	}
 }
+
+// =============================================================================
+// GET /api/device/{id}/state — Query Device State
+// =============================================================================
+
+// TestGetDeviceState_NotFound verifies that querying a non-existent device returns 404.
+func TestGetDeviceState_NotFound(t *testing.T) {
+	handler, _ := setupTestDeviceControlHandler(t, "", "")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/device/nonexistent-uuid/state", nil)
+	req.SetPathValue("id", "nonexistent-uuid")
+	w := httptest.NewRecorder()
+
+	handler.HandleGetDeviceState(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "not found") {
+		t.Errorf("expected 'not found' error, got: %s", w.Body.String())
+	}
+}
+
+// TestGetDeviceState_MissingID verifies that missing device ID returns 400.
+func TestGetDeviceState_MissingID(t *testing.T) {
+	handler, _ := setupTestDeviceControlHandler(t, "", "")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/device//state", nil)
+	req.SetPathValue("id", "")
+	w := httptest.NewRecorder()
+
+	handler.HandleGetDeviceState(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "required") {
+		t.Errorf("expected 'required' error, got: %s", w.Body.String())
+	}
+}
+
+// TestGetDeviceState_NonGoveeDevice verifies that state query on non-govee device returns 400.
+func TestGetDeviceState_NonGoveeDevice(t *testing.T) {
+	handler, device := setupTestDeviceControlHandler(t, "Fire TV", "fire_tv")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/device/"+device.ID+"/state", nil)
+	req.SetPathValue("id", device.ID)
+	w := httptest.NewRecorder()
+
+	handler.HandleGetDeviceState(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for non-govee device, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "only supported for govee_light") {
+		t.Errorf("expected device type error, got: %s", w.Body.String())
+	}
+}
+
+// TestGetDeviceState_NoExternalID verifies that a Govee device with no external_id returns 400.
+func TestGetDeviceState_NoExternalID(t *testing.T) {
+	handler, device := setupTestDeviceControlHandler(t, "Test Lamp", "govee_light")
+
+	// Device was created without external_id.
+	req := httptest.NewRequest(http.MethodGet, "/api/device/"+device.ID+"/state", nil)
+	req.SetPathValue("id", device.ID)
+	w := httptest.NewRecorder()
+
+	handler.HandleGetDeviceState(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 (no external_id), got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "external_id") {
+		t.Errorf("expected error about external_id, got: %s", w.Body.String())
+	}
+}
+
+// TestGetDeviceState_NoClients verifies that state query with no Govee clients returns 500.
+func TestGetDeviceState_NoClients(t *testing.T) {
+	// Create a test DB manually so we can create a device with external_id.
+	database, err := db.InitDB(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to init test DB: %v", err)
+	}
+	defer database.Close()
+
+	// Create a test profile.
+	profile, err := db.CreateProfile(database, "Test User")
+	if err != nil {
+		t.Fatalf("Failed to create test profile: %v", err)
+	}
+
+	// Create a Govee device WITH an external_id (MAC address).
+	mac := "AA:BB:CC:DD:EE:FF"
+	model := "H6160"
+	device, err := db.CreateDevice(database, profile.ID, "Desk Lamp", "govee_light", &mac, &model)
+	if err != nil {
+		t.Fatalf("Failed to create test device: %v", err)
+	}
+
+	// Handler has no Govee clients (nil).
+	handler := NewDeviceControlHandler(database, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/device/"+device.ID+"/state", nil)
+	req.SetPathValue("id", device.ID)
+	w := httptest.NewRecorder()
+
+	handler.HandleGetDeviceState(w, req)
+
+	// Should return 500 because no Govee API clients are configured (handler.GoveeClients is nil).
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500 (no clients), got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "no Govee API clients") {
+		t.Errorf("expected no clients error, got: %s", w.Body.String())
+	}
+}

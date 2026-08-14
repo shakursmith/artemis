@@ -105,6 +105,7 @@ func main() {
 	// to the appropriate integration (Govee API, Fire TV, etc.).
 	deviceControlHandler := handlers.NewDeviceControlHandler(database, goveeClients)
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/device/{id}/toggle", deviceControlHandler.HandleToggleDevice)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/device/{id}/state", deviceControlHandler.HandleGetDeviceState)
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/device/{id}/brightness", deviceControlHandler.HandleSetBrightness)
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/device/{id}/color", deviceControlHandler.HandleSetColor)
 
