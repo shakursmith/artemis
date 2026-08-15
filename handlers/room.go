@@ -47,7 +47,7 @@ type updateRoomBeaconRequest struct {
 // its assigned devices. Used by GET /api/room/{id}.
 type roomDetailResponse struct {
 	ID          string      `json:"id"`
-	ProfileID   string      `json:"profileId"`
+	ProfileID   *string     `json:"profileId,omitempty"` // nullable for shop mode rooms
 	Name        string      `json:"name"`
 	Icon        string      `json:"icon"`
 	BeaconUUID  *string     `json:"beaconUuid,omitempty"`

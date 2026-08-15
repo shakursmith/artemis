@@ -56,8 +56,8 @@ func TestCreateRoom_Success(t *testing.T) {
 	if resp.Icon != "sofa" {
 		t.Errorf("expected icon 'sofa', got '%s'", resp.Icon)
 	}
-	if resp.ProfileID != profile.ID {
-		t.Errorf("expected profileId '%s', got '%s'", profile.ID, resp.ProfileID)
+	if resp.ProfileID == nil || *resp.ProfileID != profile.ID {
+		t.Errorf("expected profileId '%s', got %v", profile.ID, resp.ProfileID)
 	}
 }
 

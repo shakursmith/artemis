@@ -72,6 +72,9 @@ func main() {
 	roomHandler := handlers.NewRoomHandler(database)
 	deviceHandler := handlers.NewDeviceHandler(database)
 	roomTemplateHandler := handlers.NewRoomTemplateHandler(database)
+	businessHandler := handlers.NewBusinessHandler(database)
+	locationHandler := handlers.NewLocationHandler(database)
+	triggerHandler := handlers.NewTriggerHandler(database)
 
 	// Profile endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile", profileHandler.HandleCreateProfile)
@@ -108,6 +111,27 @@ func main() {
 	mux.HandleFunc("GET "+cfg.APIBasePath+"/device/{id}/state", deviceControlHandler.HandleGetDeviceState)
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/device/{id}/brightness", deviceControlHandler.HandleSetBrightness)
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/device/{id}/color", deviceControlHandler.HandleSetColor)
+
+	// Business endpoints (shop mode)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/business", businessHandler.HandleCreateBusiness)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/business/{id}", businessHandler.HandleGetBusiness)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/business/{id}", businessHandler.HandleUpdateBusiness)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/business/{id}", businessHandler.HandleDeleteBusiness)
+
+	// Location endpoints (shop mode)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/business/{businessId}/locations", locationHandler.HandleCreateLocation)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/business/{businessId}/locations", locationHandler.HandleListLocations)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/location/{id}", locationHandler.HandleGetLocation)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/location/{id}", locationHandler.HandleUpdateLocation)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/location/{id}", locationHandler.HandleDeleteLocation)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/location/{locationId}/rooms", locationHandler.HandleCreateRoomForLocation)
+
+	// Room Trigger endpoints
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/room/{roomId}/triggers", triggerHandler.HandleCreateTrigger)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/room/{roomId}/triggers", triggerHandler.HandleListTriggers)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/trigger/{id}", triggerHandler.HandleGetTrigger)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/trigger/{id}", triggerHandler.HandleUpdateTrigger)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/trigger/{id}", triggerHandler.HandleDeleteTrigger)
 
 	// ==========================================================================
 	// Integration endpoints — External service control
@@ -222,6 +246,23 @@ func main() {
 	log.Printf("   - POST   %s/device/{id}/toggle - Toggle device on/off", cfg.APIBasePath)
 	log.Printf("   - POST   %s/device/{id}/brightness - Set device brightness", cfg.APIBasePath)
 	log.Printf("   - POST   %s/device/{id}/color - Set device color", cfg.APIBasePath)
+	log.Printf("  Business & Location Management (Shop Mode):")
+	log.Printf("   - POST   %s/business - Create business", cfg.APIBasePath)
+	log.Printf("   - GET    %s/business/{id} - Get business (with locations)", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/business/{id} - Update business", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/business/{id} - Delete business (cascade)", cfg.APIBasePath)
+	log.Printf("   - POST   %s/business/{id}/locations - Create location", cfg.APIBasePath)
+	log.Printf("   - GET    %s/business/{id}/locations - List locations", cfg.APIBasePath)
+	log.Printf("   - GET    %s/location/{id} - Get location (with rooms)", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/location/{id} - Update location", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/location/{id} - Delete location (cascade)", cfg.APIBasePath)
+	log.Printf("   - POST   %s/location/{id}/rooms - Create room for location", cfg.APIBasePath)
+	log.Printf("  Room Triggers:")
+	log.Printf("   - POST   %s/room/{id}/triggers - Create trigger", cfg.APIBasePath)
+	log.Printf("   - GET    %s/room/{id}/triggers - List triggers for room", cfg.APIBasePath)
+	log.Printf("   - GET    %s/trigger/{id} - Get trigger", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/trigger/{id} - Update trigger", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/trigger/{id} - Delete trigger", cfg.APIBasePath)
 	log.Printf("  Integrations:")
 	log.Printf("   - POST %s/lightbulb/toggle - Toggle lightbulb state", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)

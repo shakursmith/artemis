@@ -157,7 +157,7 @@ func CreateRoom(db *sql.DB, profileID, name, icon string) (*Room, error) {
 
 	return &Room{
 		ID:        id,
-		ProfileID: profileID,
+		ProfileID: &profileID,
 		Name:      name,
 		Icon:      icon,
 		CreatedAt: now,
@@ -169,8 +169,8 @@ func CreateRoom(db *sql.DB, profileID, name, icon string) (*Room, error) {
 func GetRoom(db *sql.DB, id string) (*Room, error) {
 	var r Room
 	err := db.QueryRow(
-		"SELECT id, profile_id, name, icon, beacon_uuid, beacon_major, beacon_minor, custom_template, created_at, updated_at FROM rooms WHERE id = ?", id,
-	).Scan(&r.ID, &r.ProfileID, &r.Name, &r.Icon, &r.BeaconUUID, &r.BeaconMajor, &r.BeaconMinor, &r.CustomTemplate, &r.CreatedAt, &r.UpdatedAt)
+		"SELECT id, profile_id, name, icon, beacon_uuid, beacon_major, beacon_minor, custom_template, location_id, created_at, updated_at FROM rooms WHERE id = ?", id,
+	).Scan(&r.ID, &r.ProfileID, &r.Name, &r.Icon, &r.BeaconUUID, &r.BeaconMajor, &r.BeaconMinor, &r.CustomTemplate, &r.LocationID, &r.CreatedAt, &r.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("room not found: %s", id)
 	}
@@ -183,7 +183,7 @@ func GetRoom(db *sql.DB, id string) (*Room, error) {
 // ListRoomsByProfile returns all rooms belonging to a profile, ordered by creation time.
 func ListRoomsByProfile(db *sql.DB, profileID string) ([]Room, error) {
 	rows, err := db.Query(
-		"SELECT id, profile_id, name, icon, beacon_uuid, beacon_major, beacon_minor, custom_template, created_at, updated_at FROM rooms WHERE profile_id = ? ORDER BY created_at ASC",
+		"SELECT id, profile_id, name, icon, beacon_uuid, beacon_major, beacon_minor, custom_template, location_id, created_at, updated_at FROM rooms WHERE profile_id = ? ORDER BY created_at ASC",
 		profileID,
 	)
 	if err != nil {
@@ -194,7 +194,7 @@ func ListRoomsByProfile(db *sql.DB, profileID string) ([]Room, error) {
 	var rooms []Room
 	for rows.Next() {
 		var r Room
-		if err := rows.Scan(&r.ID, &r.ProfileID, &r.Name, &r.Icon, &r.BeaconUUID, &r.BeaconMajor, &r.BeaconMinor, &r.CustomTemplate, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.ProfileID, &r.Name, &r.Icon, &r.BeaconUUID, &r.BeaconMajor, &r.BeaconMinor, &r.CustomTemplate, &r.LocationID, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan room row: %w", err)
 		}
 		rooms = append(rooms, r)
@@ -329,8 +329,8 @@ func CreateDevice(db *sql.DB, profileID string, name, deviceType string, externa
 func GetDevice(db *sql.DB, id string) (*Device, error) {
 	var d Device
 	err := db.QueryRow(
-		"SELECT id, profile_id, room_id, name, device_type, external_id, model, metadata, created_at, updated_at FROM devices WHERE id = ?", id,
-	).Scan(&d.ID, &d.ProfileID, &d.RoomID, &d.Name, &d.DeviceType, &d.ExternalID, &d.Model, &d.Metadata, &d.CreatedAt, &d.UpdatedAt)
+		"SELECT id, profile_id, room_id, name, device_type, external_id, model, metadata, business_id, created_at, updated_at FROM devices WHERE id = ?", id,
+	).Scan(&d.ID, &d.ProfileID, &d.RoomID, &d.Name, &d.DeviceType, &d.ExternalID, &d.Model, &d.Metadata, &d.BusinessID, &d.CreatedAt, &d.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("device not found: %s", id)
 	}
@@ -343,7 +343,7 @@ func GetDevice(db *sql.DB, id string) (*Device, error) {
 // ListDevicesByProfile returns all devices belonging to a profile.
 func ListDevicesByProfile(db *sql.DB, profileID string) ([]Device, error) {
 	rows, err := db.Query(
-		"SELECT id, profile_id, room_id, name, device_type, external_id, model, metadata, created_at, updated_at FROM devices WHERE profile_id = ? ORDER BY created_at ASC",
+		"SELECT id, profile_id, room_id, name, device_type, external_id, model, metadata, business_id, created_at, updated_at FROM devices WHERE profile_id = ? ORDER BY created_at ASC",
 		profileID,
 	)
 	if err != nil {
@@ -354,7 +354,7 @@ func ListDevicesByProfile(db *sql.DB, profileID string) ([]Device, error) {
 	var devices []Device
 	for rows.Next() {
 		var d Device
-		if err := rows.Scan(&d.ID, &d.ProfileID, &d.RoomID, &d.Name, &d.DeviceType, &d.ExternalID, &d.Model, &d.Metadata, &d.CreatedAt, &d.UpdatedAt); err != nil {
+		if err := rows.Scan(&d.ID, &d.ProfileID, &d.RoomID, &d.Name, &d.DeviceType, &d.ExternalID, &d.Model, &d.Metadata, &d.BusinessID, &d.CreatedAt, &d.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
 		}
 		devices = append(devices, d)
@@ -365,7 +365,7 @@ func ListDevicesByProfile(db *sql.DB, profileID string) ([]Device, error) {
 // ListDevicesByRoom returns all devices assigned to a specific room.
 func ListDevicesByRoom(db *sql.DB, roomID string) ([]Device, error) {
 	rows, err := db.Query(
-		"SELECT id, profile_id, room_id, name, device_type, external_id, model, metadata, created_at, updated_at FROM devices WHERE room_id = ? ORDER BY created_at ASC",
+		"SELECT id, profile_id, room_id, name, device_type, external_id, model, metadata, business_id, created_at, updated_at FROM devices WHERE room_id = ? ORDER BY created_at ASC",
 		roomID,
 	)
 	if err != nil {
@@ -376,7 +376,7 @@ func ListDevicesByRoom(db *sql.DB, roomID string) ([]Device, error) {
 	var devices []Device
 	for rows.Next() {
 		var d Device
-		if err := rows.Scan(&d.ID, &d.ProfileID, &d.RoomID, &d.Name, &d.DeviceType, &d.ExternalID, &d.Model, &d.Metadata, &d.CreatedAt, &d.UpdatedAt); err != nil {
+		if err := rows.Scan(&d.ID, &d.ProfileID, &d.RoomID, &d.Name, &d.DeviceType, &d.ExternalID, &d.Model, &d.Metadata, &d.BusinessID, &d.CreatedAt, &d.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
 		}
 		devices = append(devices, d)
@@ -453,6 +453,346 @@ func DeleteDevice(db *sql.DB, id string) error {
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		return fmt.Errorf("device not found: %s", id)
+	}
+	return nil
+}
+
+// =============================================================================
+// Business Operations
+// =============================================================================
+
+// CreateBusiness inserts a new business with the given name and optional owner name.
+// A UUID is auto-generated for the business ID.
+func CreateBusiness(db *sql.DB, name string, ownerName *string) (*Business, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err := db.Exec(
+		"INSERT INTO businesses (id, name, owner_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+		id, name, ownerName, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create business: %w", err)
+	}
+
+	return &Business{
+		ID:        id,
+		Name:      name,
+		OwnerName: ownerName,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, nil
+}
+
+// GetBusiness retrieves a single business by its ID.
+// Returns nil and an error if not found.
+func GetBusiness(db *sql.DB, id string) (*Business, error) {
+	var b Business
+	err := db.QueryRow(
+		"SELECT id, name, owner_name, created_at, updated_at FROM businesses WHERE id = ?", id,
+	).Scan(&b.ID, &b.Name, &b.OwnerName, &b.CreatedAt, &b.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("business not found: %s", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get business: %w", err)
+	}
+	return &b, nil
+}
+
+// ListBusinesses returns all businesses in the database.
+// Mainly useful for development and debugging.
+func ListBusinesses(db *sql.DB) ([]Business, error) {
+	rows, err := db.Query("SELECT id, name, owner_name, created_at, updated_at FROM businesses ORDER BY created_at ASC")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list businesses: %w", err)
+	}
+	defer rows.Close()
+
+	var businesses []Business
+	for rows.Next() {
+		var b Business
+		if err := rows.Scan(&b.ID, &b.Name, &b.OwnerName, &b.CreatedAt, &b.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan business row: %w", err)
+		}
+		businesses = append(businesses, b)
+	}
+	return businesses, rows.Err()
+}
+
+// UpdateBusiness changes the name and owner name of an existing business and bumps updated_at.
+func UpdateBusiness(db *sql.DB, id string, name string, ownerName *string) (*Business, error) {
+	now := time.Now().UTC()
+	result, err := db.Exec(
+		"UPDATE businesses SET name = ?, owner_name = ?, updated_at = ? WHERE id = ?",
+		name, ownerName, now, id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update business: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("business not found: %s", id)
+	}
+
+	return GetBusiness(db, id)
+}
+
+// DeleteBusiness removes a business and all associated locations/rooms (via CASCADE).
+func DeleteBusiness(db *sql.DB, id string) error {
+	result, err := db.Exec("DELETE FROM businesses WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete business: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("business not found: %s", id)
+	}
+	return nil
+}
+
+// =============================================================================
+// Location Operations
+// =============================================================================
+
+// CreateLocation adds a new location under the given business.
+func CreateLocation(db *sql.DB, businessID, name string, address *string) (*Location, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err := db.Exec(
+		"INSERT INTO locations (id, business_id, name, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		id, businessID, name, address, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create location: %w", err)
+	}
+
+	return &Location{
+		ID:         id,
+		BusinessID: businessID,
+		Name:       name,
+		Address:    address,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}, nil
+}
+
+// GetLocation retrieves a single location by its ID.
+func GetLocation(db *sql.DB, id string) (*Location, error) {
+	var l Location
+	err := db.QueryRow(
+		"SELECT id, business_id, name, address, metadata, created_at, updated_at FROM locations WHERE id = ?", id,
+	).Scan(&l.ID, &l.BusinessID, &l.Name, &l.Address, &l.Metadata, &l.CreatedAt, &l.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("location not found: %s", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get location: %w", err)
+	}
+	return &l, nil
+}
+
+// ListLocationsByBusiness returns all locations belonging to a business, ordered by creation time.
+func ListLocationsByBusiness(db *sql.DB, businessID string) ([]Location, error) {
+	rows, err := db.Query(
+		"SELECT id, business_id, name, address, metadata, created_at, updated_at FROM locations WHERE business_id = ? ORDER BY created_at ASC",
+		businessID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list locations: %w", err)
+	}
+	defer rows.Close()
+
+	var locations []Location
+	for rows.Next() {
+		var l Location
+		if err := rows.Scan(&l.ID, &l.BusinessID, &l.Name, &l.Address, &l.Metadata, &l.CreatedAt, &l.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan location row: %w", err)
+		}
+		locations = append(locations, l)
+	}
+	return locations, rows.Err()
+}
+
+// UpdateLocation changes a location's name and address, bumping updated_at.
+func UpdateLocation(db *sql.DB, id, name string, address *string) (*Location, error) {
+	now := time.Now().UTC()
+	result, err := db.Exec(
+		"UPDATE locations SET name = ?, address = ?, updated_at = ? WHERE id = ?",
+		name, address, now, id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update location: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("location not found: %s", id)
+	}
+
+	return GetLocation(db, id)
+}
+
+// DeleteLocation removes a location and all associated rooms (via CASCADE).
+func DeleteLocation(db *sql.DB, id string) error {
+	result, err := db.Exec("DELETE FROM locations WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete location: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("location not found: %s", id)
+	}
+	return nil
+}
+
+// ListRoomsByLocation returns all rooms belonging to a location, ordered by creation time.
+func ListRoomsByLocation(db *sql.DB, locationID string) ([]Room, error) {
+	rows, err := db.Query(
+		"SELECT id, profile_id, name, icon, beacon_uuid, beacon_major, beacon_minor, custom_template, location_id, created_at, updated_at FROM rooms WHERE location_id = ? ORDER BY created_at ASC",
+		locationID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list rooms by location: %w", err)
+	}
+	defer rows.Close()
+
+	var rooms []Room
+	for rows.Next() {
+		var r Room
+		if err := rows.Scan(&r.ID, &r.ProfileID, &r.Name, &r.Icon, &r.BeaconUUID, &r.BeaconMajor, &r.BeaconMinor, &r.CustomTemplate, &r.LocationID, &r.CreatedAt, &r.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan room row: %w", err)
+		}
+		rooms = append(rooms, r)
+	}
+	return rooms, rows.Err()
+}
+
+// CreateRoomForLocation adds a new room under the given location (shop mode).
+func CreateRoomForLocation(db *sql.DB, locationID, name, icon string) (*Room, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	// Use NULL for profile_id since this is a shop mode room
+	_, err := db.Exec(
+		"INSERT INTO rooms (id, profile_id, location_id, name, icon, created_at, updated_at) VALUES (?, NULL, ?, ?, ?, ?, ?)",
+		id, locationID, name, icon, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create room for location: %w", err)
+	}
+
+	return &Room{
+		ID:         id,
+		ProfileID:  nil,  // NULL for shop mode rooms
+		LocationID: &locationID,
+		Name:       name,
+		Icon:       icon,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}, nil
+}
+
+// =============================================================================
+// Room Trigger Operations
+// =============================================================================
+
+// CreateRoomTrigger adds a new trigger for a room.
+func CreateRoomTrigger(db *sql.DB, roomID, triggerType, actionType, actionConfig string, dwellSeconds *int, enabled bool) (*RoomTrigger, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err := db.Exec(
+		"INSERT INTO room_triggers (id, room_id, trigger_type, dwell_seconds, action_type, action_config, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		id, roomID, triggerType, dwellSeconds, actionType, actionConfig, enabled, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create room trigger: %w", err)
+	}
+
+	return &RoomTrigger{
+		ID:           id,
+		RoomID:       roomID,
+		TriggerType:  triggerType,
+		DwellSeconds: dwellSeconds,
+		ActionType:   actionType,
+		ActionConfig: actionConfig,
+		Enabled:      enabled,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}, nil
+}
+
+// GetRoomTrigger retrieves a single trigger by its ID.
+func GetRoomTrigger(db *sql.DB, id string) (*RoomTrigger, error) {
+	var t RoomTrigger
+	err := db.QueryRow(
+		"SELECT id, room_id, trigger_type, dwell_seconds, action_type, action_config, enabled, created_at, updated_at FROM room_triggers WHERE id = ?", id,
+	).Scan(&t.ID, &t.RoomID, &t.TriggerType, &t.DwellSeconds, &t.ActionType, &t.ActionConfig, &t.Enabled, &t.CreatedAt, &t.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("room trigger not found: %s", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get room trigger: %w", err)
+	}
+	return &t, nil
+}
+
+// ListTriggersByRoom returns all triggers for a specific room, ordered by creation time.
+func ListTriggersByRoom(db *sql.DB, roomID string) ([]RoomTrigger, error) {
+	rows, err := db.Query(
+		"SELECT id, room_id, trigger_type, dwell_seconds, action_type, action_config, enabled, created_at, updated_at FROM room_triggers WHERE room_id = ? ORDER BY created_at ASC",
+		roomID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list triggers by room: %w", err)
+	}
+	defer rows.Close()
+
+	var triggers []RoomTrigger
+	for rows.Next() {
+		var t RoomTrigger
+		if err := rows.Scan(&t.ID, &t.RoomID, &t.TriggerType, &t.DwellSeconds, &t.ActionType, &t.ActionConfig, &t.Enabled, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan trigger row: %w", err)
+		}
+		triggers = append(triggers, t)
+	}
+	return triggers, rows.Err()
+}
+
+// UpdateRoomTrigger changes a trigger's configuration.
+func UpdateRoomTrigger(db *sql.DB, id, triggerType, actionType, actionConfig string, dwellSeconds *int, enabled bool) (*RoomTrigger, error) {
+	now := time.Now().UTC()
+	result, err := db.Exec(
+		"UPDATE room_triggers SET trigger_type = ?, dwell_seconds = ?, action_type = ?, action_config = ?, enabled = ?, updated_at = ? WHERE id = ?",
+		triggerType, dwellSeconds, actionType, actionConfig, enabled, now, id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update room trigger: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("room trigger not found: %s", id)
+	}
+
+	return GetRoomTrigger(db, id)
+}
+
+// DeleteRoomTrigger permanently removes a trigger record.
+func DeleteRoomTrigger(db *sql.DB, id string) error {
+	result, err := db.Exec("DELETE FROM room_triggers WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete room trigger: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("room trigger not found: %s", id)
 	}
 	return nil
 }
