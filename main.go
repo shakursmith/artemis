@@ -75,6 +75,9 @@ func main() {
 	businessHandler := handlers.NewBusinessHandler(database)
 	locationHandler := handlers.NewLocationHandler(database)
 	triggerHandler := handlers.NewTriggerHandler(database)
+	menuTemplateHandler := handlers.NewMenuTemplateHandler(database)
+	menuOptionHandler := handlers.NewMenuOptionHandler(database)
+	roomMenuHandler := handlers.NewRoomMenuHandler(database)
 
 	// Profile endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile", profileHandler.HandleCreateProfile)
@@ -132,6 +135,26 @@ func main() {
 	mux.HandleFunc("GET "+cfg.APIBasePath+"/trigger/{id}", triggerHandler.HandleGetTrigger)
 	mux.HandleFunc("PUT "+cfg.APIBasePath+"/trigger/{id}", triggerHandler.HandleUpdateTrigger)
 	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/trigger/{id}", triggerHandler.HandleDeleteTrigger)
+
+	// Menu Template endpoints (shop mode menu system)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/menu-templates", menuTemplateHandler.HandleListTemplates)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/business/{businessId}/menu-templates", menuTemplateHandler.HandleCreateTemplate)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/menu-template/{id}", menuTemplateHandler.HandleUpdateTemplate)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/menu-template/{id}", menuTemplateHandler.HandleDeleteTemplate)
+
+	// Menu Option endpoints (shop mode menu system)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/business/{businessId}/menu-options", menuOptionHandler.HandleListMenuOptions)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/business/{businessId}/menu-options/copy", menuOptionHandler.HandleCopyTemplate)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/business/{businessId}/menu-options", menuOptionHandler.HandleCreateMenuOption)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/menu-option/{id}", menuOptionHandler.HandleUpdateMenuOption)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/menu-option/{id}", menuOptionHandler.HandleDeleteMenuOption)
+
+	// Room Menu endpoints (shop mode menu system)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/room/{roomId}/menu", roomMenuHandler.HandleGetRoomMenu)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/room/{roomId}/menu/enabled", roomMenuHandler.HandleUpdateMenuEnabled)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/room/{roomId}/menu/assign", roomMenuHandler.HandleAssignMenuOption)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/room/{roomId}/menu/unassign", roomMenuHandler.HandleUnassignMenuOption)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/room/{roomId}/menu/reorder", roomMenuHandler.HandleReorderMenuOptions)
 
 	// ==========================================================================
 	// Integration endpoints — External service control
@@ -263,6 +286,21 @@ func main() {
 	log.Printf("   - GET    %s/trigger/{id} - Get trigger", cfg.APIBasePath)
 	log.Printf("   - PUT    %s/trigger/{id} - Update trigger", cfg.APIBasePath)
 	log.Printf("   - DELETE %s/trigger/{id} - Delete trigger", cfg.APIBasePath)
+	log.Printf("  Menu System (Shop Mode):")
+	log.Printf("   - GET    %s/menu-templates - List all templates", cfg.APIBasePath)
+	log.Printf("   - POST   %s/business/{id}/menu-templates - Create template", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/menu-template/{id} - Update template", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/menu-template/{id} - Delete template", cfg.APIBasePath)
+	log.Printf("   - GET    %s/business/{id}/menu-options - List menu options", cfg.APIBasePath)
+	log.Printf("   - POST   %s/business/{id}/menu-options/copy - Copy template to menu option", cfg.APIBasePath)
+	log.Printf("   - POST   %s/business/{id}/menu-options - Create custom menu option", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/menu-option/{id} - Update menu option", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/menu-option/{id} - Delete menu option", cfg.APIBasePath)
+	log.Printf("   - GET    %s/room/{id}/menu - Get room menu (with options)", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/room/{id}/menu/enabled - Enable/disable room menu", cfg.APIBasePath)
+	log.Printf("   - POST   %s/room/{id}/menu/assign - Assign option to room menu", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/room/{id}/menu/unassign - Unassign option from room menu", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/room/{id}/menu/reorder - Reorder room menu options", cfg.APIBasePath)
 	log.Printf("  Integrations:")
 	log.Printf("   - POST %s/lightbulb/toggle - Toggle lightbulb state", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)

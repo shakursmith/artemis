@@ -86,3 +86,68 @@ type RoomTrigger struct {
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
+
+// MenuOptionTemplate represents a global template for menu options.
+// Templates can be system-provided (wifi, url) or business-created.
+// Other businesses can copy templates to create their own menu options.
+type MenuOptionTemplate struct {
+	ID                 string    `json:"id"`
+	CreatedByBusinessID *string  `json:"createdByBusinessId,omitempty"` // nullable for system templates
+	OptionType         string    `json:"optionType"`                    // "wifi", "url", "qr_code", etc.
+	DefaultTitle       string    `json:"defaultTitle"`                  // default title for this template
+	DefaultIcon        string    `json:"defaultIcon"`                   // SF Symbol name for icon
+	DataSchema         string    `json:"dataSchema"`                    // JSON schema defining required fields
+	Description        string    `json:"description"`                   // description of what this template does
+	IsSystem           bool      `json:"isSystem"`                      // true for built-in templates
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
+}
+
+// MenuOption represents a business-specific menu option (copied from a template).
+// Contains actual data like WiFi credentials or menu URLs.
+type MenuOption struct {
+	ID         string    `json:"id"`
+	BusinessID string    `json:"businessId"`
+	TemplateID *string   `json:"templateId,omitempty"` // nullable — can create custom options without a template
+	OptionType string    `json:"optionType"`           // "wifi", "url", etc. — immutable after creation
+	Title      string    `json:"title"`                // customizable title for this option
+	Icon       string    `json:"icon"`                 // SF Symbol name, customizable
+	Data       string    `json:"data"`                 // JSON blob with actual credentials/URLs/etc.
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+}
+
+// Menu represents a menu for a specific room.
+// One-to-one relationship: each room has exactly one menu.
+type Menu struct {
+	ID        string    `json:"id"`
+	RoomID    string    `json:"roomId"`    // unique — each room has one menu
+	IsEnabled bool      `json:"isEnabled"` // whether the menu is shown when entering the room
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// MenuOptionAssignment represents a menu option assigned to a room's menu.
+// Junction table with ordering — manages the many-to-many relationship
+// between menus and menu options.
+type MenuOptionAssignment struct {
+	ID           string    `json:"id"`
+	MenuID       string    `json:"menuId"`
+	MenuOptionID string    `json:"menuOptionId"`
+	Position     int       `json:"position"`  // display order (0-indexed)
+	CreatedAt    time.Time `json:"createdAt"`
+}
+
+// WiFiData represents the typed data structure for WiFi menu options.
+// This is what gets stored in the MenuOption.Data field (as JSON).
+type WiFiData struct {
+	SSID     string `json:"ssid"`
+	Password string `json:"password"`
+}
+
+// URLData represents the typed data structure for URL menu options.
+// This is what gets stored in the MenuOption.Data field (as JSON).
+type URLData struct {
+	URL   string `json:"url"`
+	Title string `json:"title,omitempty"` // optional display title
+}

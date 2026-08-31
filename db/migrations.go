@@ -97,6 +97,67 @@ var migrations = []string{
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 	);`,
+
+	// menu_option_templates table — global template library for menu options
+	// System templates (wifi, url) are seeded on first migration.
+	// Businesses can also create custom templates that other businesses can copy.
+	`CREATE TABLE IF NOT EXISTS menu_option_templates (
+		id TEXT PRIMARY KEY,
+		created_by_business_id TEXT,
+		option_type TEXT NOT NULL,
+		default_title TEXT NOT NULL,
+		default_icon TEXT NOT NULL,
+		data_schema TEXT NOT NULL,
+		description TEXT NOT NULL,
+		is_system BOOLEAN DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (created_by_business_id) REFERENCES businesses(id) ON DELETE CASCADE
+	);`,
+
+	// menu_options table — business-specific menu options (copied from templates)
+	// Contains actual data like WiFi credentials or menu URLs.
+	// option_type is immutable after creation to prevent data schema mismatches.
+	`CREATE TABLE IF NOT EXISTS menu_options (
+		id TEXT PRIMARY KEY,
+		business_id TEXT NOT NULL,
+		template_id TEXT,
+		option_type TEXT NOT NULL,
+		title TEXT NOT NULL,
+		icon TEXT NOT NULL,
+		data TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+		FOREIGN KEY (template_id) REFERENCES menu_option_templates(id) ON DELETE SET NULL
+	);`,
+
+	// menus table — one menu per room
+	// One-to-one relationship: each room has exactly one menu.
+	// is_enabled controls whether the menu is shown when entering the room.
+	`CREATE TABLE IF NOT EXISTS menus (
+		id TEXT PRIMARY KEY,
+		room_id TEXT NOT NULL UNIQUE,
+		is_enabled BOOLEAN DEFAULT 1,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+	);`,
+
+	// menu_option_assignments table — junction table with ordering
+	// Manages the many-to-many relationship between menus and menu options.
+	// UNIQUE constraints enforce one assignment per option per menu and prevent position collisions.
+	`CREATE TABLE IF NOT EXISTS menu_option_assignments (
+		id TEXT PRIMARY KEY,
+		menu_id TEXT NOT NULL,
+		menu_option_id TEXT NOT NULL,
+		position INTEGER NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (menu_id) REFERENCES menus(id) ON DELETE CASCADE,
+		FOREIGN KEY (menu_option_id) REFERENCES menu_options(id) ON DELETE CASCADE,
+		UNIQUE (menu_id, menu_option_id),
+		UNIQUE (menu_id, position)
+	);`,
 }
 
 // RunMigrations executes all schema migrations against the given database connection.
@@ -146,6 +207,12 @@ func RunMigrations(db *sql.DB) error {
 	// This fixes the issue where the FK was pointing to "rooms_old" after the migration.
 	if err := migrateRoomTriggersForeignKey(db); err != nil {
 		return fmt.Errorf("failed to migrate room_triggers foreign key: %w", err)
+	}
+
+	// Seed system menu option templates (wifi, url) if they don't exist.
+	// These templates are available to all businesses to copy and customize.
+	if err := seedSystemTemplates(db); err != nil {
+		return fmt.Errorf("failed to seed system templates: %w", err)
 	}
 
 	return nil
@@ -278,5 +345,46 @@ func migrateRoomTriggersForeignKey(db *sql.DB) error {
 	}
 
 	log.Printf("✅ room_triggers table migrated successfully — foreign key now points to rooms table")
+	return nil
+}
+
+// seedSystemTemplates inserts the built-in system templates for menu options.
+// This is idempotent — it checks if templates already exist before inserting.
+func seedSystemTemplates(db *sql.DB) error {
+	// Check if system templates already exist
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM menu_option_templates WHERE is_system = 1").Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check for existing system templates: %w", err)
+	}
+
+	// If system templates already exist, skip seeding
+	if count > 0 {
+		return nil
+	}
+
+	log.Printf("🌱 Seeding system menu option templates...")
+
+	// WiFi template — allows customers to join the business's WiFi network
+	wifiSchema := `{"type":"object","properties":{"ssid":{"type":"string"},"password":{"type":"string"}},"required":["ssid","password"]}`
+	_, err = db.Exec(`
+		INSERT INTO menu_option_templates (id, created_by_business_id, option_type, default_title, default_icon, data_schema, description, is_system, created_at, updated_at)
+		VALUES (?, NULL, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, "tpl_wifi_system", "wifi", "Join WiFi", "wifi", wifiSchema, "Allow customers to connect to your WiFi network")
+	if err != nil {
+		return fmt.Errorf("failed to seed wifi template: %w", err)
+	}
+
+	// URL template — allows businesses to link to menus, websites, social media, etc.
+	urlSchema := `{"type":"object","properties":{"url":{"type":"string"},"title":{"type":"string"}},"required":["url"]}`
+	_, err = db.Exec(`
+		INSERT INTO menu_option_templates (id, created_by_business_id, option_type, default_title, default_icon, data_schema, description, is_system, created_at, updated_at)
+		VALUES (?, NULL, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, "tpl_url_system", "url", "View Menu", "link", urlSchema, "Link to your menu, website, or social media")
+	if err != nil {
+		return fmt.Errorf("failed to seed url template: %w", err)
+	}
+
+	log.Printf("✅ System templates seeded successfully")
 	return nil
 }

@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"crypto/rand"
@@ -795,4 +796,427 @@ func DeleteRoomTrigger(db *sql.DB, id string) error {
 		return fmt.Errorf("room trigger not found: %s", id)
 	}
 	return nil
+}
+
+// =============================================================================
+// Menu Option Template Operations
+// =============================================================================
+
+// CreateMenuOptionTemplate creates a new menu option template.
+// Business-created templates are visible to all businesses.
+// System templates (is_system=true) can only be created during seeding.
+func CreateMenuOptionTemplate(db *sql.DB, createdByBusinessID *string, optionType, defaultTitle, defaultIcon, dataSchema, description string) (*MenuOptionTemplate, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err := db.Exec(
+		"INSERT INTO menu_option_templates (id, created_by_business_id, option_type, default_title, default_icon, data_schema, description, is_system, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
+		id, createdByBusinessID, optionType, defaultTitle, defaultIcon, dataSchema, description, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create menu option template: %w", err)
+	}
+
+	return &MenuOptionTemplate{
+		ID:                  id,
+		CreatedByBusinessID: createdByBusinessID,
+		OptionType:          optionType,
+		DefaultTitle:        defaultTitle,
+		DefaultIcon:         defaultIcon,
+		DataSchema:          dataSchema,
+		Description:         description,
+		IsSystem:            false,
+		CreatedAt:           now,
+		UpdatedAt:           now,
+	}, nil
+}
+
+// GetMenuOptionTemplate retrieves a single template by its ID.
+func GetMenuOptionTemplate(db *sql.DB, id string) (*MenuOptionTemplate, error) {
+	var t MenuOptionTemplate
+	err := db.QueryRow(
+		"SELECT id, created_by_business_id, option_type, default_title, default_icon, data_schema, description, is_system, created_at, updated_at FROM menu_option_templates WHERE id = ?", id,
+	).Scan(&t.ID, &t.CreatedByBusinessID, &t.OptionType, &t.DefaultTitle, &t.DefaultIcon, &t.DataSchema, &t.Description, &t.IsSystem, &t.CreatedAt, &t.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("menu option template not found: %s", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get menu option template: %w", err)
+	}
+	return &t, nil
+}
+
+// ListMenuOptionTemplates returns all menu option templates (system + business-created).
+// Ordered by system templates first, then by creation time.
+func ListMenuOptionTemplates(db *sql.DB) ([]MenuOptionTemplate, error) {
+	rows, err := db.Query(
+		"SELECT id, created_by_business_id, option_type, default_title, default_icon, data_schema, description, is_system, created_at, updated_at FROM menu_option_templates ORDER BY is_system DESC, created_at ASC",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list menu option templates: %w", err)
+	}
+	defer rows.Close()
+
+	var templates []MenuOptionTemplate
+	for rows.Next() {
+		var t MenuOptionTemplate
+		if err := rows.Scan(&t.ID, &t.CreatedByBusinessID, &t.OptionType, &t.DefaultTitle, &t.DefaultIcon, &t.DataSchema, &t.Description, &t.IsSystem, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan template row: %w", err)
+		}
+		templates = append(templates, t)
+	}
+	return templates, rows.Err()
+}
+
+// UpdateMenuOptionTemplate updates a template's fields.
+// System templates cannot be edited (returns error).
+func UpdateMenuOptionTemplate(db *sql.DB, id, defaultTitle, defaultIcon, dataSchema, description string) (*MenuOptionTemplate, error) {
+	// Check if this is a system template
+	template, err := GetMenuOptionTemplate(db, id)
+	if err != nil {
+		return nil, err
+	}
+	if template.IsSystem {
+		return nil, fmt.Errorf("cannot edit system template: %s", id)
+	}
+
+	now := time.Now().UTC()
+	result, err := db.Exec(
+		"UPDATE menu_option_templates SET default_title = ?, default_icon = ?, data_schema = ?, description = ?, updated_at = ? WHERE id = ?",
+		defaultTitle, defaultIcon, dataSchema, description, now, id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update menu option template: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("menu option template not found: %s", id)
+	}
+
+	return GetMenuOptionTemplate(db, id)
+}
+
+// DeleteMenuOptionTemplate removes a template.
+// System templates cannot be deleted (returns error).
+func DeleteMenuOptionTemplate(db *sql.DB, id string) error {
+	// Check if this is a system template
+	template, err := GetMenuOptionTemplate(db, id)
+	if err != nil {
+		return err
+	}
+	if template.IsSystem {
+		return fmt.Errorf("cannot delete system template: %s", id)
+	}
+
+	result, err := db.Exec("DELETE FROM menu_option_templates WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete menu option template: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("menu option template not found: %s", id)
+	}
+	return nil
+}
+
+// =============================================================================
+// Menu Option Operations
+// =============================================================================
+
+// CreateMenuOption creates a new menu option for a business.
+// Can optionally be linked to a template via templateID.
+func CreateMenuOption(db *sql.DB, businessID string, templateID *string, optionType, title, icon, data string) (*MenuOption, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err := db.Exec(
+		"INSERT INTO menu_options (id, business_id, template_id, option_type, title, icon, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		id, businessID, templateID, optionType, title, icon, data, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create menu option: %w", err)
+	}
+
+	return &MenuOption{
+		ID:         id,
+		BusinessID: businessID,
+		TemplateID: templateID,
+		OptionType: optionType,
+		Title:      title,
+		Icon:       icon,
+		Data:       data,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}, nil
+}
+
+// CopyMenuOptionFromTemplate copies a template to create a business-specific menu option.
+// The data parameter must conform to the template's data schema (validation should be done by caller).
+func CopyMenuOptionFromTemplate(db *sql.DB, businessID, templateID, data string) (*MenuOption, error) {
+	// Get the template to copy its default values
+	template, err := GetMenuOptionTemplate(db, templateID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get template: %w", err)
+	}
+
+	// Create the menu option with template's defaults
+	return CreateMenuOption(db, businessID, &templateID, template.OptionType, template.DefaultTitle, template.DefaultIcon, data)
+}
+
+// GetMenuOption retrieves a single menu option by its ID.
+func GetMenuOption(db *sql.DB, id string) (*MenuOption, error) {
+	var o MenuOption
+	err := db.QueryRow(
+		"SELECT id, business_id, template_id, option_type, title, icon, data, created_at, updated_at FROM menu_options WHERE id = ?", id,
+	).Scan(&o.ID, &o.BusinessID, &o.TemplateID, &o.OptionType, &o.Title, &o.Icon, &o.Data, &o.CreatedAt, &o.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("menu option not found: %s", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get menu option: %w", err)
+	}
+	return &o, nil
+}
+
+// ListMenuOptionsByBusiness returns all menu options for a specific business.
+func ListMenuOptionsByBusiness(db *sql.DB, businessID string) ([]MenuOption, error) {
+	rows, err := db.Query(
+		"SELECT id, business_id, template_id, option_type, title, icon, data, created_at, updated_at FROM menu_options WHERE business_id = ? ORDER BY created_at ASC",
+		businessID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list menu options by business: %w", err)
+	}
+	defer rows.Close()
+
+	var options []MenuOption
+	for rows.Next() {
+		var o MenuOption
+		if err := rows.Scan(&o.ID, &o.BusinessID, &o.TemplateID, &o.OptionType, &o.Title, &o.Icon, &o.Data, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan menu option row: %w", err)
+		}
+		options = append(options, o)
+	}
+	return options, rows.Err()
+}
+
+// UpdateMenuOption updates a menu option's title, icon, and data.
+// option_type cannot be changed after creation.
+func UpdateMenuOption(db *sql.DB, id, title, icon, data string) (*MenuOption, error) {
+	now := time.Now().UTC()
+	result, err := db.Exec(
+		"UPDATE menu_options SET title = ?, icon = ?, data = ?, updated_at = ? WHERE id = ?",
+		title, icon, data, now, id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update menu option: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("menu option not found: %s", id)
+	}
+
+	return GetMenuOption(db, id)
+}
+
+// DeleteMenuOption removes a menu option.
+// This will also remove all assignments of this option to menus (via CASCADE).
+func DeleteMenuOption(db *sql.DB, id string) error {
+	result, err := db.Exec("DELETE FROM menu_options WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete menu option: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("menu option not found: %s", id)
+	}
+	return nil
+}
+
+// =============================================================================
+// Menu Operations
+// =============================================================================
+
+// GetOrCreateMenu retrieves the menu for a room, creating it if it doesn't exist.
+// Each room has exactly one menu (one-to-one relationship).
+func GetOrCreateMenu(db *sql.DB, roomID string) (*Menu, error) {
+	// Try to get existing menu
+	var m Menu
+	err := db.QueryRow(
+		"SELECT id, room_id, is_enabled, created_at, updated_at FROM menus WHERE room_id = ?", roomID,
+	).Scan(&m.ID, &m.RoomID, &m.IsEnabled, &m.CreatedAt, &m.UpdatedAt)
+
+	if err == nil {
+		// Menu exists, return it
+		return &m, nil
+	}
+
+	if err != sql.ErrNoRows {
+		// Unexpected error
+		return nil, fmt.Errorf("failed to get menu: %w", err)
+	}
+
+	// Menu doesn't exist, create it
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err = db.Exec(
+		"INSERT INTO menus (id, room_id, is_enabled, created_at, updated_at) VALUES (?, ?, 1, ?, ?)",
+		id, roomID, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create menu: %w", err)
+	}
+
+	return &Menu{
+		ID:        id,
+		RoomID:    roomID,
+		IsEnabled: true,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, nil
+}
+
+// UpdateMenuEnabled updates the is_enabled flag for a menu.
+func UpdateMenuEnabled(db *sql.DB, roomID string, enabled bool) (*Menu, error) {
+	// Ensure menu exists first
+	menu, err := GetOrCreateMenu(db, roomID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	_, err = db.Exec(
+		"UPDATE menus SET is_enabled = ?, updated_at = ? WHERE id = ?",
+		enabled, now, menu.ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update menu enabled: %w", err)
+	}
+
+	menu.IsEnabled = enabled
+	menu.UpdatedAt = now
+	return menu, nil
+}
+
+// =============================================================================
+// Menu Option Assignment Operations
+// =============================================================================
+
+// AssignMenuOption assigns a menu option to a room's menu at the specified position.
+// If the position is already taken, this will fail due to UNIQUE constraint.
+func AssignMenuOption(db *sql.DB, menuID, menuOptionID string, position int) (*MenuOptionAssignment, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err := db.Exec(
+		"INSERT INTO menu_option_assignments (id, menu_id, menu_option_id, position, created_at) VALUES (?, ?, ?, ?, ?)",
+		id, menuID, menuOptionID, position, now,
+	)
+	if err != nil {
+		// Check for UNIQUE constraint violation
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return nil, fmt.Errorf("menu option already assigned or position already taken")
+		}
+		return nil, fmt.Errorf("failed to assign menu option: %w", err)
+	}
+
+	return &MenuOptionAssignment{
+		ID:           id,
+		MenuID:       menuID,
+		MenuOptionID: menuOptionID,
+		Position:     position,
+		CreatedAt:    now,
+	}, nil
+}
+
+// UnassignMenuOption removes a menu option assignment from a menu.
+func UnassignMenuOption(db *sql.DB, menuID, menuOptionID string) error {
+	result, err := db.Exec(
+		"DELETE FROM menu_option_assignments WHERE menu_id = ? AND menu_option_id = ?",
+		menuID, menuOptionID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to unassign menu option: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("menu option assignment not found")
+	}
+	return nil
+}
+
+// ReorderMenuOptions updates the positions of menu options in a menu.
+// menuOptionIDs should be ordered by desired position (index 0 = position 0, etc.)
+// This is transaction-based to ensure atomicity.
+func ReorderMenuOptions(db *sql.DB, menuID string, menuOptionIDs []string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update each assignment with its new position
+	for i, menuOptionID := range menuOptionIDs {
+		result, err := tx.Exec(
+			"UPDATE menu_option_assignments SET position = ? WHERE menu_id = ? AND menu_option_id = ?",
+			i, menuID, menuOptionID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update position for option %s: %w", menuOptionID, err)
+		}
+
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return fmt.Errorf("menu option assignment not found: %s", menuOptionID)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit reorder transaction: %w", err)
+	}
+	return nil
+}
+
+// GetMenuWithOptions retrieves a menu with all its assigned options, ordered by position.
+// Returns the menu and a slice of menu options.
+func GetMenuWithOptions(db *sql.DB, roomID string) (*Menu, []MenuOption, error) {
+	// Get or create the menu
+	menu, err := GetOrCreateMenu(db, roomID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get all assigned menu options, ordered by position
+	rows, err := db.Query(`
+		SELECT mo.id, mo.business_id, mo.template_id, mo.option_type, mo.title, mo.icon, mo.data, mo.created_at, mo.updated_at
+		FROM menu_options mo
+		INNER JOIN menu_option_assignments moa ON moa.menu_option_id = mo.id
+		WHERE moa.menu_id = ?
+		ORDER BY moa.position ASC
+	`, menu.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get menu options: %w", err)
+	}
+	defer rows.Close()
+
+	var options []MenuOption
+	for rows.Next() {
+		var o MenuOption
+		if err := rows.Scan(&o.ID, &o.BusinessID, &o.TemplateID, &o.OptionType, &o.Title, &o.Icon, &o.Data, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			return nil, nil, fmt.Errorf("failed to scan menu option row: %w", err)
+		}
+		options = append(options, o)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	return menu, options, nil
 }
