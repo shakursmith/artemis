@@ -1047,8 +1047,8 @@ func GetOrCreateMenu(db *sql.DB, roomID string) (*Menu, error) {
 	// Try to get existing menu
 	var m Menu
 	err := db.QueryRow(
-		"SELECT id, room_id, is_enabled, created_at, updated_at FROM menus WHERE room_id = ?", roomID,
-	).Scan(&m.ID, &m.RoomID, &m.IsEnabled, &m.CreatedAt, &m.UpdatedAt)
+		"SELECT id, room_id, is_enabled, menu_color, menu_opacity, text_color, icon_color, collapsed_icon, created_at, updated_at FROM menus WHERE room_id = ?", roomID,
+	).Scan(&m.ID, &m.RoomID, &m.IsEnabled, &m.MenuColor, &m.MenuOpacity, &m.TextColor, &m.IconColor, &m.CollapsedIcon, &m.CreatedAt, &m.UpdatedAt)
 
 	if err == nil {
 		// Menu exists, return it
@@ -1060,12 +1060,12 @@ func GetOrCreateMenu(db *sql.DB, roomID string) (*Menu, error) {
 		return nil, fmt.Errorf("failed to get menu: %w", err)
 	}
 
-	// Menu doesn't exist, create it
+	// Menu doesn't exist, create it with default appearance values
 	id := generateUUID()
 	now := time.Now().UTC()
 
 	_, err = db.Exec(
-		"INSERT INTO menus (id, room_id, is_enabled, created_at, updated_at) VALUES (?, ?, 1, ?, ?)",
+		"INSERT INTO menus (id, room_id, is_enabled, menu_color, menu_opacity, text_color, icon_color, collapsed_icon, created_at, updated_at) VALUES (?, ?, 1, '#000000', 0.3, '#FFFFFF', '#FF9500', 'storefront', ?, ?)",
 		id, roomID, now, now,
 	)
 	if err != nil {
@@ -1073,11 +1073,16 @@ func GetOrCreateMenu(db *sql.DB, roomID string) (*Menu, error) {
 	}
 
 	return &Menu{
-		ID:        id,
-		RoomID:    roomID,
-		IsEnabled: true,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:            id,
+		RoomID:        roomID,
+		IsEnabled:     true,
+		MenuColor:     "#000000",
+		MenuOpacity:   0.3,
+		TextColor:     "#FFFFFF",
+		IconColor:     "#FF9500",
+		CollapsedIcon: "storefront",
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}, nil
 }
 
@@ -1099,6 +1104,32 @@ func UpdateMenuEnabled(db *sql.DB, roomID string, enabled bool) (*Menu, error) {
 	}
 
 	menu.IsEnabled = enabled
+	menu.UpdatedAt = now
+	return menu, nil
+}
+
+// UpdateMenuAppearance updates the appearance customization for a menu.
+func UpdateMenuAppearance(db *sql.DB, roomID string, menuColor string, menuOpacity float64, textColor string, iconColor string, collapsedIcon string) (*Menu, error) {
+	// Ensure menu exists first
+	menu, err := GetOrCreateMenu(db, roomID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	_, err = db.Exec(
+		"UPDATE menus SET menu_color = ?, menu_opacity = ?, text_color = ?, icon_color = ?, collapsed_icon = ?, updated_at = ? WHERE id = ?",
+		menuColor, menuOpacity, textColor, iconColor, collapsedIcon, now, menu.ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update menu appearance: %w", err)
+	}
+
+	menu.MenuColor = menuColor
+	menu.MenuOpacity = menuOpacity
+	menu.TextColor = textColor
+	menu.IconColor = iconColor
+	menu.CollapsedIcon = collapsedIcon
 	menu.UpdatedAt = now
 	return menu, nil
 }

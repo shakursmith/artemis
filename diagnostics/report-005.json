@@ -1,0 +1,464 @@
+{
+  "appConfig": {
+    "bufferSize": 5,
+    "ignoreFarReadings": false,
+    "switchThreshold": 3
+  },
+  "beaconHardwareNotes": "",
+  "readings": [
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.12394114034396438
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:15.913Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.15346743419336326,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -61,
+          "smoothed": 0.13198575915884272
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:16.917Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.23773334705055874,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -64,
+          "smoothed": 0.15680832789410049
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:17.914Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.07426492438930052,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -52,
+          "smoothed": 0.14680766685150737
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:18.917Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.14680766685150737
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:19.918Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.14680766685150737
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:20.913Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.14680766685150737
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:21.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.14680766685150737
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:22.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.14680766685150737
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:23.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.14680766685150737
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:24.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.14680766685150737
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:25.917Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.020707152837238205,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -43,
+          "smoothed": 0.12320298264816192
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:26.921Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.016686982481289015,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -43,
+          "smoothed": 0.10057196819034994
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:27.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.01668148645202949,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -43,
+          "smoothed": 0.0732147786420832
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:28.916Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.0732147786420832
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:29.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.014821215639569743,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -42,
+          "smoothed": 0.028632352359885392
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:30.916Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.014680878702979823,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -42,
+          "smoothed": 0.016715543222621254
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:31.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.016519050093973933,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -43,
+          "smoothed": 0.0158779226739684
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:32.918Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.0158779226739684
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:33.916Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.0158779226739684
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:34.918Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.0158779226739684
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:35.916Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.0148091494464976,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -42,
+          "smoothed": 0.015502356067010118
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:36.916Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.015502356067010118
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:37.916Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.015502356067010118
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:38.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.015502356067010118
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:39.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.015502356067010118
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:40.916Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": 0.02434794040201952,
+          "minor": 1,
+          "proximity": "immediate",
+          "room": "Main Cafe",
+          "rssi": -46,
+          "smoothed": 0.017035646857008126
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:41.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.017035646857008126
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:42.918Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.017035646857008126
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:43.915Z"
+    },
+    {
+      "beacons": [
+        {
+          "accuracy": -1,
+          "minor": 1,
+          "proximity": "unknown",
+          "room": "Main Cafe",
+          "rssi": 0,
+          "smoothed": 0.017035646857008126
+        }
+      ],
+      "currentRoom": "Main Cafe",
+      "t": "2026-08-27T03:07:44.914Z"
+    }
+  ],
+  "roomSwitchEvents": [],
+  "rooms": [
+    {
+      "minor": 1,
+      "name": "Main Cafe"
+    }
+  ],
+  "session": {
+    "description": "Phone stationary next to beacon",
+    "durationSeconds": 30,
+    "endTime": "2026-08-27T03:07:44.993Z",
+    "expectedRoom": "Main Cafe",
+    "id": "3E9ECA6D-CB25-4FD3-8FB4-B5D42AF25CA1",
+    "startTime": "2026-08-27T03:07:14.992Z"
+  },
+  "summary": {
+    "perBeacon": {
+      "Main Cafe": {
+        "avgAccuracy": -0.61,
+        "avgRssi": -17.4,
+        "maxAccuracy": 0.24,
+        "minAccuracy": -1,
+        "readingCount": 30
+      }
+    },
+    "stability": {
+      "expectedRoom": "Main Cafe",
+      "falseSwitches": 0,
+      "percentInExpectedRoom": 100,
+      "percentInOtherRooms": 0
+    },
+    "totalReadingCycles": 30,
+    "totalRoomSwitches": 0
+  }
+}

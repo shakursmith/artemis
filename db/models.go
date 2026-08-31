@@ -119,12 +119,18 @@ type MenuOption struct {
 
 // Menu represents a menu for a specific room.
 // One-to-one relationship: each room has exactly one menu.
+// Includes appearance customization fields.
 type Menu struct {
-	ID        string    `json:"id"`
-	RoomID    string    `json:"roomId"`    // unique — each room has one menu
-	IsEnabled bool      `json:"isEnabled"` // whether the menu is shown when entering the room
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID             string    `json:"id"`
+	RoomID         string    `json:"roomId"`         // unique — each room has one menu
+	IsEnabled      bool      `json:"isEnabled"`      // whether the menu is shown when entering the room
+	MenuColor      string    `json:"menuColor"`      // hex color for menu background (e.g., "#000000")
+	MenuOpacity    float64   `json:"menuOpacity"`    // opacity for menu background (0.0 to 1.0)
+	TextColor      string    `json:"textColor"`      // hex color for menu text (e.g., "#FFFFFF")
+	IconColor      string    `json:"iconColor"`      // hex color for menu icons (e.g., "#FF9500")
+	CollapsedIcon  string    `json:"collapsedIcon"`  // SF Symbol name for collapsed state icon
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
 // MenuOptionAssignment represents a menu option assigned to a room's menu.

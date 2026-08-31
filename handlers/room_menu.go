@@ -55,6 +55,15 @@ type updateMenuEnabledRequest struct {
 	Enabled bool `json:"enabled"`
 }
 
+// updateMenuAppearanceRequest is the JSON body for PUT /api/room/{roomId}/menu/appearance
+type updateMenuAppearanceRequest struct {
+	MenuColor     string  `json:"menuColor"`
+	MenuOpacity   float64 `json:"menuOpacity"`
+	TextColor     string  `json:"textColor"`
+	IconColor     string  `json:"iconColor"`
+	CollapsedIcon string  `json:"collapsedIcon"`
+}
+
 // assignMenuOptionRequest is the JSON body for POST /api/room/{roomId}/menu/assign
 type assignMenuOptionRequest struct {
 	MenuOptionID string `json:"menuOptionId"`
@@ -76,28 +85,14 @@ type reorderMenuOptionsRequest struct {
 // =============================================================================
 
 // HandleGetRoomMenu returns a room's menu with options and appearance settings.
-// This is a hybrid response that combines:
-// - Menu data from the menus table
-// - Menu options from menu_options + menu_option_assignments
-// - Appearance settings from Location.metadata (backward compatible)
+// Menu data and appearance come from the menus table.
+// Options come from menu_options + menu_option_assignments.
 // GET /api/room/{roomId}/menu
 // Response (200): {menu, options[], appearance}
 func (h *RoomMenuHandler) HandleGetRoomMenu(w http.ResponseWriter, r *http.Request) {
 	roomID := r.PathValue("roomId")
 	if roomID == "" {
 		writeError(w, http.StatusBadRequest, "Room ID is required")
-		return
-	}
-
-	// Get the room to find its location
-	room, err := db.GetRoom(h.DB, roomID)
-	if err != nil {
-		if isNotFound(err) {
-			writeError(w, http.StatusNotFound, "Room not found")
-			return
-		}
-		log.Printf("❌ Failed to get room %s: %v", roomID, err)
-		writeError(w, http.StatusInternalServerError, "Failed to get room")
 		return
 	}
 
@@ -109,34 +104,30 @@ func (h *RoomMenuHandler) HandleGetRoomMenu(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Convert menu appearance fields to menuAppearance struct
+	appearance := menuAppearance{
+		Colors: &menuColors{
+			Overlay:        &menu.TextColor,
+			MenuBackground: &menu.MenuColor,
+			MenuButton:     &menu.IconColor,
+		},
+		OverlayOpacity:      &menu.MenuOpacity,
+		MenuBackgroundColor: &menu.MenuColor,
+		MenuButtonColor:     &menu.IconColor,
+		Icon:                &menu.CollapsedIcon,
+		Enabled:             &menu.IsEnabled,
+	}
+
 	// Initialize response
 	resp := roomMenuResponse{
-		Menu:    menu,
-		Options: options,
+		Menu:       menu,
+		Options:    options,
+		Appearance: &appearance,
 	}
 
 	// Return empty array instead of nil for JSON
 	if resp.Options == nil {
 		resp.Options = []db.MenuOption{}
-	}
-
-	// Get appearance settings from Location.metadata if this is a shop mode room
-	if room.LocationID != nil {
-		location, err := db.GetLocation(h.DB, *room.LocationID)
-		if err == nil && location.Metadata != nil && *location.Metadata != "" {
-			// Parse Location.metadata to extract shopMenuConfig
-			var metadata map[string]interface{}
-			if err := json.Unmarshal([]byte(*location.Metadata), &metadata); err == nil {
-				if shopMenuConfig, ok := metadata["shopMenuConfig"].(map[string]interface{}); ok {
-					// Convert to menuAppearance struct
-					appearanceJSON, _ := json.Marshal(shopMenuConfig)
-					var appearance menuAppearance
-					if err := json.Unmarshal(appearanceJSON, &appearance); err == nil {
-						resp.Appearance = &appearance
-					}
-				}
-			}
-		}
 	}
 
 	log.Printf("📋 Retrieved menu for room %s with %d options", roomID, len(options))
@@ -315,4 +306,47 @@ func (h *RoomMenuHandler) HandleReorderMenuOptions(w http.ResponseWriter, r *htt
 
 	log.Printf("📋 Reordered %d menu options for room %s", len(req.MenuOptionIDs), roomID)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// HandleUpdateMenuAppearance updates the appearance customization for a room's menu.
+// PUT /api/room/{roomId}/menu/appearance
+// Request body: {"menuColor": "#000000", "menuOpacity": 0.3, "textColor": "#FFFFFF", "iconColor": "#FF9500", "collapsedIcon": "storefront"}
+// Response (200): updated menu object
+func (h *RoomMenuHandler) HandleUpdateMenuAppearance(w http.ResponseWriter, r *http.Request) {
+	roomID := r.PathValue("roomId")
+	if roomID == "" {
+		writeError(w, http.StatusBadRequest, "Room ID is required")
+		return
+	}
+
+	// Parse request body
+	var req updateMenuAppearanceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("❌ Update menu appearance: invalid request body: %v", err)
+		writeError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate required fields
+	if req.MenuColor == "" || req.TextColor == "" || req.IconColor == "" || req.CollapsedIcon == "" {
+		writeError(w, http.StatusBadRequest, "All appearance fields are required")
+		return
+	}
+
+	// Validate opacity range
+	if req.MenuOpacity < 0.0 || req.MenuOpacity > 1.0 {
+		writeError(w, http.StatusBadRequest, "menuOpacity must be between 0.0 and 1.0")
+		return
+	}
+
+	// Update menu appearance
+	menu, err := db.UpdateMenuAppearance(h.DB, roomID, req.MenuColor, req.MenuOpacity, req.TextColor, req.IconColor, req.CollapsedIcon)
+	if err != nil {
+		log.Printf("❌ Failed to update menu appearance for room %s: %v", roomID, err)
+		writeError(w, http.StatusInternalServerError, "Failed to update menu appearance")
+		return
+	}
+
+	log.Printf("📋 Updated menu appearance for room %s", roomID)
+	writeJSON(w, http.StatusOK, menu)
 }

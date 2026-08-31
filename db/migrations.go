@@ -135,10 +135,16 @@ var migrations = []string{
 	// menus table — one menu per room
 	// One-to-one relationship: each room has exactly one menu.
 	// is_enabled controls whether the menu is shown when entering the room.
+	// Appearance fields control the visual customization of the menu.
 	`CREATE TABLE IF NOT EXISTS menus (
 		id TEXT PRIMARY KEY,
 		room_id TEXT NOT NULL UNIQUE,
 		is_enabled BOOLEAN DEFAULT 1,
+		menu_color TEXT DEFAULT '#000000',
+		menu_opacity REAL DEFAULT 0.3,
+		text_color TEXT DEFAULT '#FFFFFF',
+		icon_color TEXT DEFAULT '#FF9500',
+		collapsed_icon TEXT DEFAULT 'storefront',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
@@ -184,6 +190,14 @@ func RunMigrations(db *sql.DB) error {
 		// business_id enables devices to belong to either a profile (home mode) OR
 		// a business (shop mode). Added in Prompt 14A for business/location support.
 		`ALTER TABLE devices ADD COLUMN business_id TEXT REFERENCES businesses(id) ON DELETE CASCADE`,
+
+		// Menu appearance columns — added in shop menu backend system implementation.
+		// These control the visual customization of the shop menu.
+		`ALTER TABLE menus ADD COLUMN menu_color TEXT DEFAULT '#000000'`,
+		`ALTER TABLE menus ADD COLUMN menu_opacity REAL DEFAULT 0.3`,
+		`ALTER TABLE menus ADD COLUMN text_color TEXT DEFAULT '#FFFFFF'`,
+		`ALTER TABLE menus ADD COLUMN icon_color TEXT DEFAULT '#FF9500'`,
+		`ALTER TABLE menus ADD COLUMN collapsed_icon TEXT DEFAULT 'storefront'`,
 	}
 	for _, alter := range alterMigrations {
 		_, err := db.Exec(alter)
