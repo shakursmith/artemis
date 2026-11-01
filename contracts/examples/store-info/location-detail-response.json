@@ -1,0 +1,96 @@
+{
+  "id": "b4d6f9c8-5e83-4c2f-8b9e-3d7f9e5c8a6d",
+  "businessId": "a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c",
+  "name": "Downtown Store",
+  "address": {
+    "street": "123 Main St",
+    "street2": null,
+    "city": "San Francisco",
+    "state": "CA",
+    "postalCode": "94102",
+    "country": "US",
+    "latitude": 37.7749,
+    "longitude": -122.4194
+  },
+  "timezone": "America/Los_Angeles",
+  "openingHours": {
+    "monday": {
+      "ranges": [
+        {
+          "open": "07:00",
+          "close": "19:00"
+        }
+      ]
+    },
+    "tuesday": {
+      "ranges": [
+        {
+          "open": "07:00",
+          "close": "19:00"
+        }
+      ]
+    },
+    "wednesday": {
+      "ranges": [
+        {
+          "open": "07:00",
+          "close": "19:00"
+        }
+      ]
+    },
+    "thursday": {
+      "ranges": [
+        {
+          "open": "07:00",
+          "close": "19:00"
+        }
+      ]
+    },
+    "friday": {
+      "ranges": [
+        {
+          "open": "07:00",
+          "close": "21:00"
+        }
+      ]
+    },
+    "saturday": {
+      "ranges": [
+        {
+          "open": "08:00",
+          "close": "21:00"
+        }
+      ]
+    },
+    "sunday": {
+      "ranges": [
+        {
+          "open": "08:00",
+          "close": "18:00"
+        }
+      ]
+    }
+  },
+  "specialHours": [
+    {
+      "date": "2024-12-25",
+      "reason": "Christmas Day",
+      "hours": null
+    },
+    {
+      "date": "2024-12-31",
+      "reason": "New Year's Eve",
+      "hours": {
+        "ranges": [
+          {
+            "open": "07:00",
+            "close": "15:00"
+          }
+        ]
+      }
+    }
+  ],
+  "isOpenNow": true,
+  "createdAt": "2024-10-15T14:25:42Z",
+  "updatedAt": "2024-11-01T09:18:21Z"
+}
