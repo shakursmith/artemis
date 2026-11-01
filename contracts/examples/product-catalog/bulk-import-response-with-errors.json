@@ -1,0 +1,19 @@
+{
+  "success": false,
+  "categoriesCreated": 0,
+  "itemsCreated": 0,
+  "modifierGroupsCreated": 0,
+  "modifiersCreated": 0,
+  "errors": [
+    {
+      "rowIndex": 5,
+      "field": "itemPriceMinorUnits",
+      "error": "Price must be greater than or equal to zero"
+    },
+    {
+      "rowIndex": 6,
+      "field": "itemName",
+      "error": "Item name is required and cannot be empty"
+    }
+  ]
+}

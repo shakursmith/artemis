@@ -1,0 +1,309 @@
+{
+  "id": "f3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c",
+  "businessId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Breakfast Menu",
+  "description": "Served daily from 7am to 11am",
+  "isActive": true,
+  "displayOrder": 0,
+  "createdAt": "2024-11-01T08:00:00Z",
+  "updatedAt": "2024-11-01T08:00:00Z",
+  "categories": [
+    {
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "menuId": "f3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c",
+      "name": "Breakfast Classics",
+      "description": "Traditional breakfast favorites",
+      "isAvailable": true,
+      "displayOrder": 0,
+      "createdAt": "2024-11-01T08:00:00Z",
+      "updatedAt": "2024-11-01T08:00:00Z",
+      "items": [
+        {
+          "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+          "categoryId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+          "name": "Pancakes",
+          "description": "Fluffy buttermilk pancakes with maple syrup",
+          "priceMinorUnits": 995,
+          "currencyCode": "USD",
+          "imageUrls": [
+            "https://cdn.example.com/images/pancakes.jpg"
+          ],
+          "dietaryTags": [
+            "vegetarian"
+          ],
+          "isAvailable": true,
+          "isSoldOut": false,
+          "displayOrder": 0,
+          "createdAt": "2024-11-01T08:00:00Z",
+          "updatedAt": "2024-11-01T08:00:00Z",
+          "modifierGroups": [
+            {
+              "id": "d4e5f6a7-b8c9-0123-def1-234567890123",
+              "itemId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+              "name": "Stack Size",
+              "minSelections": 1,
+              "maxSelections": 1,
+              "isAvailable": true,
+              "displayOrder": 0,
+              "createdAt": "2024-11-01T08:00:00Z",
+              "updatedAt": "2024-11-01T08:00:00Z",
+              "modifiers": [
+                {
+                  "id": "e5f6a7b8-c9d0-1234-ef12-345678901234",
+                  "modifierGroupId": "d4e5f6a7-b8c9-0123-def1-234567890123",
+                  "name": "Short Stack (2 pancakes)",
+                  "priceAdjustmentMinorUnits": 0,
+                  "isAvailable": true,
+                  "isDefault": true,
+                  "displayOrder": 0,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                },
+                {
+                  "id": "f6a7b8c9-d0e1-2345-f123-456789012345",
+                  "modifierGroupId": "d4e5f6a7-b8c9-0123-def1-234567890123",
+                  "name": "Full Stack (3 pancakes)",
+                  "priceAdjustmentMinorUnits": 250,
+                  "isAvailable": true,
+                  "isDefault": false,
+                  "displayOrder": 1,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                },
+                {
+                  "id": "a7b8c9d0-e1f2-3456-1234-567890123456",
+                  "modifierGroupId": "d4e5f6a7-b8c9-0123-def1-234567890123",
+                  "name": "Large Stack (4 pancakes)",
+                  "priceAdjustmentMinorUnits": 450,
+                  "isAvailable": true,
+                  "isDefault": false,
+                  "displayOrder": 2,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                }
+              ]
+            },
+            {
+              "id": "b8c9d0e1-f2a3-4567-2345-678901234567",
+              "itemId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+              "name": "Add-ons",
+              "minSelections": 0,
+              "maxSelections": 5,
+              "isAvailable": true,
+              "displayOrder": 1,
+              "createdAt": "2024-11-01T08:00:00Z",
+              "updatedAt": "2024-11-01T08:00:00Z",
+              "modifiers": [
+                {
+                  "id": "c9d0e1f2-a3b4-5678-3456-789012345678",
+                  "modifierGroupId": "b8c9d0e1-f2a3-4567-2345-678901234567",
+                  "name": "Bacon",
+                  "priceAdjustmentMinorUnits": 295,
+                  "isAvailable": true,
+                  "isDefault": false,
+                  "displayOrder": 0,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                },
+                {
+                  "id": "d0e1f2a3-b4c5-6789-4567-890123456789",
+                  "modifierGroupId": "b8c9d0e1-f2a3-4567-2345-678901234567",
+                  "name": "Sausage",
+                  "priceAdjustmentMinorUnits": 295,
+                  "isAvailable": true,
+                  "isDefault": false,
+                  "displayOrder": 1,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                },
+                {
+                  "id": "e1f2a3b4-c5d6-7890-5678-901234567890",
+                  "modifierGroupId": "b8c9d0e1-f2a3-4567-2345-678901234567",
+                  "name": "Fresh Fruit",
+                  "priceAdjustmentMinorUnits": 195,
+                  "isAvailable": true,
+                  "isDefault": false,
+                  "displayOrder": 2,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                },
+                {
+                  "id": "f2a3b4c5-d6e7-8901-6789-012345678901",
+                  "modifierGroupId": "b8c9d0e1-f2a3-4567-2345-678901234567",
+                  "name": "Whipped Cream",
+                  "priceAdjustmentMinorUnits": 95,
+                  "isAvailable": true,
+                  "isDefault": false,
+                  "displayOrder": 3,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+          "categoryId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+          "name": "Eggs Benedict",
+          "description": "Poached eggs on English muffin with hollandaise sauce",
+          "priceMinorUnits": 1495,
+          "currencyCode": "USD",
+          "imageUrls": [
+            "https://cdn.example.com/images/eggs-benedict.jpg"
+          ],
+          "dietaryTags": [],
+          "isAvailable": true,
+          "isSoldOut": false,
+          "displayOrder": 1,
+          "createdAt": "2024-11-01T08:00:00Z",
+          "updatedAt": "2024-11-01T08:00:00Z",
+          "modifierGroups": [
+            {
+              "id": "2b3c4d5e-6f7a-8901-bcde-f12345678901",
+              "itemId": "1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+              "name": "Choice of Protein",
+              "minSelections": 1,
+              "maxSelections": 1,
+              "isAvailable": true,
+              "displayOrder": 0,
+              "createdAt": "2024-11-01T08:00:00Z",
+              "updatedAt": "2024-11-01T08:00:00Z",
+              "modifiers": [
+                {
+                  "id": "3c4d5e6f-7a8b-9012-cdef-123456789012",
+                  "modifierGroupId": "2b3c4d5e-6f7a-8901-bcde-f12345678901",
+                  "name": "Canadian Bacon",
+                  "priceAdjustmentMinorUnits": 0,
+                  "isAvailable": true,
+                  "isDefault": true,
+                  "displayOrder": 0,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                },
+                {
+                  "id": "4d5e6f7a-8b9c-0123-def1-234567890123",
+                  "modifierGroupId": "2b3c4d5e-6f7a-8901-bcde-f12345678901",
+                  "name": "Smoked Salmon",
+                  "priceAdjustmentMinorUnits": 395,
+                  "isAvailable": true,
+                  "isDefault": false,
+                  "displayOrder": 1,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                },
+                {
+                  "id": "5e6f7a8b-9c0d-1234-ef12-345678901234",
+                  "modifierGroupId": "2b3c4d5e-6f7a-8901-bcde-f12345678901",
+                  "name": "Spinach & Tomato",
+                  "priceAdjustmentMinorUnits": 0,
+                  "isAvailable": true,
+                  "isDefault": false,
+                  "displayOrder": 2,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6f7a8b9c-0d1e-2345-f123-456789012345",
+      "menuId": "f3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c",
+      "name": "Beverages",
+      "description": "Hot and cold drinks",
+      "isAvailable": true,
+      "displayOrder": 1,
+      "createdAt": "2024-11-01T08:00:00Z",
+      "updatedAt": "2024-11-01T08:00:00Z",
+      "items": [
+        {
+          "id": "7a8b9c0d-1e2f-3456-1234-567890123456",
+          "categoryId": "6f7a8b9c-0d1e-2345-f123-456789012345",
+          "name": "Coffee",
+          "description": "Fresh brewed coffee",
+          "priceMinorUnits": 295,
+          "currencyCode": "USD",
+          "imageUrls": [],
+          "dietaryTags": [
+            "vegan"
+          ],
+          "isAvailable": true,
+          "isSoldOut": false,
+          "displayOrder": 0,
+          "createdAt": "2024-11-01T08:00:00Z",
+          "updatedAt": "2024-11-01T08:00:00Z",
+          "modifierGroups": [
+            {
+              "id": "8b9c0d1e-2f3a-4567-2345-678901234567",
+              "itemId": "7a8b9c0d-1e2f-3456-1234-567890123456",
+              "name": "Size",
+              "minSelections": 1,
+              "maxSelections": 1,
+              "isAvailable": true,
+              "displayOrder": 0,
+              "createdAt": "2024-11-01T08:00:00Z",
+              "updatedAt": "2024-11-01T08:00:00Z",
+              "modifiers": [
+                {
+                  "id": "9c0d1e2f-3a4b-5678-3456-789012345678",
+                  "modifierGroupId": "8b9c0d1e-2f3a-4567-2345-678901234567",
+                  "name": "Small",
+                  "priceAdjustmentMinorUnits": 0,
+                  "isAvailable": true,
+                  "isDefault": true,
+                  "displayOrder": 0,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                },
+                {
+                  "id": "0d1e2f3a-4b5c-6789-4567-890123456789",
+                  "modifierGroupId": "8b9c0d1e-2f3a-4567-2345-678901234567",
+                  "name": "Medium",
+                  "priceAdjustmentMinorUnits": 50,
+                  "isAvailable": true,
+                  "isDefault": false,
+                  "displayOrder": 1,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                },
+                {
+                  "id": "1e2f3a4b-5c6d-7890-5678-901234567890",
+                  "modifierGroupId": "8b9c0d1e-2f3a-4567-2345-678901234567",
+                  "name": "Large",
+                  "priceAdjustmentMinorUnits": 100,
+                  "isAvailable": true,
+                  "isDefault": false,
+                  "displayOrder": 2,
+                  "createdAt": "2024-11-01T08:00:00Z",
+                  "updatedAt": "2024-11-01T08:00:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "2f3a4b5c-6d7e-8901-6789-012345678901",
+          "categoryId": "6f7a8b9c-0d1e-2345-f123-456789012345",
+          "name": "Orange Juice",
+          "description": "Freshly squeezed orange juice",
+          "priceMinorUnits": 495,
+          "currencyCode": "USD",
+          "imageUrls": [],
+          "dietaryTags": [
+            "vegan",
+            "gluten-free"
+          ],
+          "isAvailable": true,
+          "isSoldOut": true,
+          "displayOrder": 1,
+          "createdAt": "2024-11-01T08:00:00Z",
+          "updatedAt": "2024-11-01T10:15:00Z",
+          "modifierGroups": []
+        }
+      ]
+    }
+  ]
+}

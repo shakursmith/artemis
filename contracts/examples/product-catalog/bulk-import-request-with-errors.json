@@ -1,0 +1,158 @@
+{
+  "menuName": "Lunch Menu",
+  "menuDescription": "Served Monday through Friday, 11am to 3pm",
+  "menuIsActive": true,
+  "menuDisplayOrder": 1,
+  "dryRun": true,
+  "rows": [
+    {
+      "categoryName": "Appetizers",
+      "categoryDescription": "Start your meal right",
+      "categoryDisplayOrder": 0,
+      "itemName": "Caesar Salad",
+      "itemDescription": "Crisp romaine, parmesan, croutons, house-made dressing",
+      "itemPriceMinorUnits": 1295,
+      "itemCurrencyCode": "USD",
+      "itemImageUrls": [
+        "https://cdn.example.com/images/caesar-salad.jpg"
+      ],
+      "itemDietaryTags": [
+        "vegetarian"
+      ],
+      "itemDisplayOrder": 0,
+      "modifierGroupName": "Size",
+      "modifierGroupMinSelections": 1,
+      "modifierGroupMaxSelections": 1,
+      "modifierGroupDisplayOrder": 0,
+      "modifierName": "Side",
+      "modifierPriceAdjustment": 0,
+      "modifierIsDefault": true,
+      "modifierDisplayOrder": 0
+    },
+    {
+      "categoryName": "Appetizers",
+      "categoryDescription": "Start your meal right",
+      "categoryDisplayOrder": 0,
+      "itemName": "Caesar Salad",
+      "itemDescription": "Crisp romaine, parmesan, croutons, house-made dressing",
+      "itemPriceMinorUnits": 1295,
+      "itemCurrencyCode": "USD",
+      "itemImageUrls": [
+        "https://cdn.example.com/images/caesar-salad.jpg"
+      ],
+      "itemDietaryTags": [
+        "vegetarian"
+      ],
+      "itemDisplayOrder": 0,
+      "modifierGroupName": "Size",
+      "modifierGroupMinSelections": 1,
+      "modifierGroupMaxSelections": 1,
+      "modifierGroupDisplayOrder": 0,
+      "modifierName": "Full",
+      "modifierPriceAdjustment": 495,
+      "modifierIsDefault": false,
+      "modifierDisplayOrder": 1
+    },
+    {
+      "categoryName": "Entrees",
+      "categoryDescription": "Main courses",
+      "categoryDisplayOrder": 1,
+      "itemName": "Grilled Chicken Sandwich",
+      "itemDescription": "Marinated chicken breast with lettuce, tomato, and mayo",
+      "itemPriceMinorUnits": 1595,
+      "itemCurrencyCode": "USD",
+      "itemImageUrls": [
+        "https://cdn.example.com/images/chicken-sandwich.jpg"
+      ],
+      "itemDietaryTags": [],
+      "itemDisplayOrder": 0,
+      "modifierGroupName": "Bread Choice",
+      "modifierGroupMinSelections": 1,
+      "modifierGroupMaxSelections": 1,
+      "modifierGroupDisplayOrder": 0,
+      "modifierName": "White",
+      "modifierPriceAdjustment": 0,
+      "modifierIsDefault": true,
+      "modifierDisplayOrder": 0
+    },
+    {
+      "categoryName": "Entrees",
+      "categoryDescription": "Main courses",
+      "categoryDisplayOrder": 1,
+      "itemName": "Grilled Chicken Sandwich",
+      "itemDescription": "Marinated chicken breast with lettuce, tomato, and mayo",
+      "itemPriceMinorUnits": 1595,
+      "itemCurrencyCode": "USD",
+      "itemImageUrls": [
+        "https://cdn.example.com/images/chicken-sandwich.jpg"
+      ],
+      "itemDietaryTags": [],
+      "itemDisplayOrder": 0,
+      "modifierGroupName": "Bread Choice",
+      "modifierGroupMinSelections": 1,
+      "modifierGroupMaxSelections": 1,
+      "modifierGroupDisplayOrder": 0,
+      "modifierName": "Wheat",
+      "modifierPriceAdjustment": 0,
+      "modifierIsDefault": false,
+      "modifierDisplayOrder": 1
+    },
+    {
+      "categoryName": "Entrees",
+      "categoryDescription": "Main courses",
+      "categoryDisplayOrder": 1,
+      "itemName": "Grilled Chicken Sandwich",
+      "itemDescription": "Marinated chicken breast with lettuce, tomato, and mayo",
+      "itemPriceMinorUnits": 1595,
+      "itemCurrencyCode": "USD",
+      "itemImageUrls": [
+        "https://cdn.example.com/images/chicken-sandwich.jpg"
+      ],
+      "itemDietaryTags": [],
+      "itemDisplayOrder": 0,
+      "modifierGroupName": "Bread Choice",
+      "modifierGroupMinSelections": 1,
+      "modifierGroupMaxSelections": 1,
+      "modifierGroupDisplayOrder": 0,
+      "modifierName": "Sourdough",
+      "modifierPriceAdjustment": 50,
+      "modifierIsDefault": false,
+      "modifierDisplayOrder": 2
+    },
+    {
+      "categoryName": "Entrees",
+      "categoryDescription": "Main courses",
+      "categoryDisplayOrder": 1,
+      "itemName": "Veggie Burger",
+      "itemDescription": "House-made veggie patty with all the fixings",
+      "itemPriceMinorUnits": -100,
+      "itemCurrencyCode": "USD",
+      "itemImageUrls": [],
+      "itemDietaryTags": [
+        "vegetarian",
+        "vegan"
+      ],
+      "itemDisplayOrder": 1
+    },
+    {
+      "categoryName": "Beverages",
+      "categoryDescription": "Drinks",
+      "categoryDisplayOrder": 2,
+      "itemName": "",
+      "itemDescription": "Ice cold soda",
+      "itemPriceMinorUnits": 295,
+      "itemCurrencyCode": "USD",
+      "itemImageUrls": [],
+      "itemDietaryTags": [],
+      "itemDisplayOrder": 0,
+      "modifierGroupName": "Flavor",
+      "modifierGroupMinSelections": 1,
+      "modifierGroupMaxSelections": 1,
+      "modifierGroupDisplayOrder": 0,
+      "modifierName": "Coke",
+      "modifierPriceAdjustment": 0,
+      "modifierIsDefault": true,
+      "modifierDisplayOrder": 0
+    }
+  ]
+}
