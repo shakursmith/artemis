@@ -1,0 +1,13 @@
+{
+  "id": "a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c",
+  "name": "Brew & Bytes Coffee",
+  "ownerName": "Jane Smith",
+  "welcomeMessage": "Welcome to Brew & Bytes! We're a locally-owned coffee shop passionate about serving exceptional artisan coffee and fresh-baked pastries. Whether you're here to work, meet friends, or just relax, we're glad you're here. Enjoy our complimentary WiFi and cozy atmosphere!",
+  "website": "https://brewandbytes.com",
+  "phone": "+14155551234",
+  "logoUrl": "https://cdn.example.com/logos/brew-bytes.png",
+  "accentColor": "#8B4513",
+  "heroImageUrl": "https://cdn.example.com/heroes/brew-bytes-interior.jpg",
+  "createdAt": "2024-10-15T14:23:11Z",
+  "updatedAt": "2024-11-01T09:15:33Z"
+}

@@ -1,0 +1,86 @@
+{
+  "id": "c5e7g0d9-6f94-5d3g-9c0f-4e8g0f6d9b7e",
+  "businessId": "a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c",
+  "name": "Airport Branch",
+  "address": {
+    "street": "Terminal 2, Gate 50",
+    "street2": null,
+    "city": "San Francisco",
+    "state": "CA",
+    "postalCode": "94128",
+    "country": "US",
+    "latitude": 37.6213,
+    "longitude": -122.3790
+  },
+  "timezone": "America/Los_Angeles",
+  "openingHours": {
+    "monday": {
+      "ranges": [
+        {
+          "open": "06:00",
+          "close": "10:00"
+        },
+        {
+          "open": "16:00",
+          "close": "20:00"
+        }
+      ]
+    },
+    "tuesday": {
+      "ranges": [
+        {
+          "open": "06:00",
+          "close": "10:00"
+        },
+        {
+          "open": "16:00",
+          "close": "20:00"
+        }
+      ]
+    },
+    "wednesday": {
+      "ranges": [
+        {
+          "open": "06:00",
+          "close": "10:00"
+        },
+        {
+          "open": "16:00",
+          "close": "20:00"
+        }
+      ]
+    },
+    "thursday": {
+      "ranges": [
+        {
+          "open": "06:00",
+          "close": "10:00"
+        },
+        {
+          "open": "16:00",
+          "close": "20:00"
+        }
+      ]
+    },
+    "friday": {
+      "ranges": [
+        {
+          "open": "06:00",
+          "close": "10:00"
+        },
+        {
+          "open": "16:00",
+          "close": "20:00"
+        }
+      ]
+    },
+    "saturday": {
+      "ranges": []
+    },
+    "sunday": null
+  },
+  "specialHours": [],
+  "isOpenNow": false,
+  "createdAt": "2024-10-20T11:42:18Z",
+  "updatedAt": "2024-10-28T16:33:52Z"
+}

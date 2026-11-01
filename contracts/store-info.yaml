@@ -1,0 +1,603 @@
+openapi: 3.0.3
+info:
+  title: Artemis Store Information API
+  description: |
+    API contract for customer-facing store information including hours, contact details,
+    location data, branding, and a friendly welcome message. This extends the existing
+    Business and Location resources to support shop mode customer experience.
+
+    **Resource boundaries:**
+    - **Business** fields: branding (logo, accent color, hero image), welcome message, website, phone
+    - **Location** fields: structured address with coordinates, timezone, opening hours
+
+    **Rationale:**
+    - Business-level fields are shared across all locations (chain stores share branding, website, phone)
+    - Location-level fields are specific to each physical store (each location has unique hours, address, timezone)
+
+    **Computed fields:**
+    - `isOpenNow` computed in the location's timezone using location's opening hours and special hours overrides
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development server
+  - url: https://api.example.com/api
+    description: Production server (placeholder)
+
+paths:
+  # Business endpoints
+  /business/{businessId}:
+    get:
+      summary: Get business information
+      description: |
+        Returns full business details including branding and contact information.
+        Public endpoint for customer-facing apps.
+      operationId: getBusiness
+      tags:
+        - Business
+        - Public
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          description: UUID of the business
+          schema:
+            type: string
+            format: uuid
+          example: "a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+      responses:
+        '200':
+          description: Business details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessDetail'
+        '404':
+          description: Business not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update business information
+      description: |
+        Updates business branding and contact information. Requires authentication.
+        Admin-only endpoint.
+      operationId: updateBusiness
+      tags:
+        - Business
+        - Admin
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          description: UUID of the business
+          schema:
+            type: string
+            format: uuid
+          example: "a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        - $ref: '#/components/parameters/AuthorizationHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessUpdateRequest'
+      responses:
+        '200':
+          description: Business updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessDetail'
+        '400':
+          description: Invalid request body or validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized (auth not yet implemented, reserved for future)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Business not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Location endpoints
+  /location/{locationId}:
+    get:
+      summary: Get location information
+      description: |
+        Returns full location details including address, hours, timezone, and computed isOpenNow field.
+        Public endpoint for customer-facing apps.
+      operationId: getLocation
+      tags:
+        - Location
+        - Public
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          description: UUID of the location
+          schema:
+            type: string
+            format: uuid
+          example: "b4d6f9c8-5e83-4c2f-8b9e-3d7f9e5c8a6d"
+      responses:
+        '200':
+          description: Location details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationDetail'
+        '404':
+          description: Location not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update location information
+      description: |
+        Updates location address, hours, and timezone. Requires authentication.
+        Admin-only endpoint.
+      operationId: updateLocation
+      tags:
+        - Location
+        - Admin
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          description: UUID of the location
+          schema:
+            type: string
+            format: uuid
+          example: "b4d6f9c8-5e83-4c2f-8b9e-3d7f9e5c8a6d"
+        - $ref: '#/components/parameters/AuthorizationHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationUpdateRequest'
+      responses:
+        '200':
+          description: Location updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationDetail'
+        '400':
+          description: Invalid request body or validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized (auth not yet implemented, reserved for future)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Location not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  parameters:
+    AuthorizationHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: |
+        Bearer token for authentication. Optional for now, reserved for future use.
+        Once authentication is implemented, this header will be required for admin endpoints.
+      schema:
+        type: string
+      example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+  schemas:
+    # Business schemas
+    BusinessDetail:
+      type: object
+      required:
+        - id
+        - name
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the business
+          example: "a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        name:
+          type: string
+          description: Business name
+          example: "Brew & Bytes Coffee"
+        ownerName:
+          type: string
+          nullable: true
+          description: Optional shop manager or owner name
+          example: "Jane Smith"
+        welcomeMessage:
+          type: string
+          nullable: true
+          description: Short friendly message from the owner to customers
+          example: "Welcome! We're a local coffee shop serving artisan coffee and fresh pastries. Enjoy our free WiFi while you work."
+          maxLength: 500
+        website:
+          type: string
+          format: uri
+          nullable: true
+          description: Business website URL
+          example: "https://brewandbytes.com"
+        phone:
+          type: string
+          nullable: true
+          description: Business contact phone number (E.164 format recommended)
+          example: "+14155551234"
+        logoUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to the business logo image
+          example: "https://cdn.example.com/logos/brew-bytes.png"
+        accentColor:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          nullable: true
+          description: Brand accent color in hex format
+          example: "#8B4513"
+        heroImageUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to the hero/banner image for the business
+          example: "https://cdn.example.com/heroes/brew-bytes-interior.jpg"
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of when the business was created
+          example: "2024-11-01T18:32:45Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of when the business was last updated
+          example: "2024-11-01T18:32:45Z"
+
+    BusinessUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Business name
+          example: "Brew & Bytes Coffee"
+        ownerName:
+          type: string
+          nullable: true
+          description: Shop manager or owner name
+          example: "Jane Smith"
+        welcomeMessage:
+          type: string
+          nullable: true
+          description: Short friendly message from the owner to customers
+          example: "Welcome! We're a local coffee shop serving artisan coffee and fresh pastries."
+          maxLength: 500
+        website:
+          type: string
+          format: uri
+          nullable: true
+          description: Business website URL
+          example: "https://brewandbytes.com"
+        phone:
+          type: string
+          nullable: true
+          description: Business contact phone number
+          example: "+14155551234"
+        logoUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to the business logo image
+          example: "https://cdn.example.com/logos/brew-bytes.png"
+        accentColor:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          nullable: true
+          description: Brand accent color in hex format
+          example: "#8B4513"
+        heroImageUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to the hero/banner image for the business
+          example: "https://cdn.example.com/heroes/brew-bytes-interior.jpg"
+
+    # Location schemas
+    LocationDetail:
+      type: object
+      required:
+        - id
+        - businessId
+        - name
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the location
+          example: "b4d6f9c8-5e83-4c2f-8b9e-3d7f9e5c8a6d"
+        businessId:
+          type: string
+          format: uuid
+          description: UUID of the parent business
+          example: "a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        name:
+          type: string
+          description: Location name (e.g., "Downtown Store", "Airport Branch")
+          example: "Downtown Store"
+        address:
+          $ref: '#/components/schemas/Address'
+        timezone:
+          type: string
+          nullable: true
+          description: IANA timezone identifier for this location (used for isOpenNow computation)
+          example: "America/Los_Angeles"
+        openingHours:
+          $ref: '#/components/schemas/OpeningHours'
+        specialHours:
+          type: array
+          nullable: true
+          description: Holiday or special event hours that override regular opening hours
+          items:
+            $ref: '#/components/schemas/SpecialHours'
+        isOpenNow:
+          type: boolean
+          description: |
+            Computed field indicating if the location is currently open.
+            Calculated in the location's timezone using openingHours and specialHours.
+            If timezone is not set, defaults to server timezone.
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of when the location was created
+          example: "2024-11-01T18:32:45Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of when the location was last updated
+          example: "2024-11-01T18:32:45Z"
+
+    LocationUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Location name
+          example: "Downtown Store"
+        address:
+          $ref: '#/components/schemas/Address'
+        timezone:
+          type: string
+          nullable: true
+          description: IANA timezone identifier for this location
+          example: "America/Los_Angeles"
+        openingHours:
+          $ref: '#/components/schemas/OpeningHours'
+        specialHours:
+          type: array
+          nullable: true
+          description: Holiday or special event hours
+          items:
+            $ref: '#/components/schemas/SpecialHours'
+
+    # Address schema
+    Address:
+      type: object
+      nullable: true
+      description: Structured address with geocoding information
+      required:
+        - street
+        - city
+        - state
+        - postalCode
+        - country
+      properties:
+        street:
+          type: string
+          description: Street address
+          example: "123 Main St"
+        street2:
+          type: string
+          nullable: true
+          description: Additional address line (suite, unit, etc.)
+          example: "Suite 200"
+        city:
+          type: string
+          description: City name
+          example: "San Francisco"
+        state:
+          type: string
+          description: State or province code
+          example: "CA"
+        postalCode:
+          type: string
+          description: Postal/ZIP code
+          example: "94102"
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code
+          example: "US"
+        latitude:
+          type: number
+          format: double
+          nullable: true
+          description: Latitude for map directions
+          example: 37.7749
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          nullable: true
+          description: Longitude for map directions
+          example: -122.4194
+          minimum: -180
+          maximum: 180
+
+    # Opening hours schema
+    OpeningHours:
+      type: object
+      nullable: true
+      description: Weekly opening hours with support for multiple ranges per day and closed days
+      properties:
+        monday:
+          $ref: '#/components/schemas/DayHours'
+        tuesday:
+          $ref: '#/components/schemas/DayHours'
+        wednesday:
+          $ref: '#/components/schemas/DayHours'
+        thursday:
+          $ref: '#/components/schemas/DayHours'
+        friday:
+          $ref: '#/components/schemas/DayHours'
+        saturday:
+          $ref: '#/components/schemas/DayHours'
+        sunday:
+          $ref: '#/components/schemas/DayHours'
+
+    DayHours:
+      type: object
+      nullable: true
+      description: |
+        Opening hours for a single day. Null or omitted means closed all day.
+        Empty ranges array means closed all day.
+        Multiple ranges support split shifts (e.g., breakfast and dinner service).
+      properties:
+        ranges:
+          type: array
+          description: List of open time ranges for this day (empty array = closed)
+          items:
+            $ref: '#/components/schemas/TimeRange'
+          example:
+            - open: "07:00"
+              close: "11:00"
+            - open: "17:00"
+              close: "22:00"
+
+    TimeRange:
+      type: object
+      required:
+        - open
+        - close
+      description: A single continuous open time range
+      properties:
+        open:
+          type: string
+          pattern: '^([0-1][0-9]|2[0-3]):[0-5][0-9]$'
+          description: Opening time in 24-hour HH:MM format
+          example: "09:00"
+        close:
+          type: string
+          pattern: '^([0-1][0-9]|2[0-3]):[0-5][0-9]$'
+          description: Closing time in 24-hour HH:MM format
+          example: "21:00"
+
+    # Special hours schema
+    SpecialHours:
+      type: object
+      required:
+        - date
+        - reason
+      description: Special hours override for holidays or events
+      properties:
+        date:
+          type: string
+          format: date
+          description: Date for the special hours (YYYY-MM-DD)
+          example: "2024-12-25"
+        reason:
+          type: string
+          description: Reason for special hours (e.g., "Christmas Day", "Private Event")
+          example: "Christmas Day"
+        hours:
+          $ref: '#/components/schemas/DayHours'
+          description: Hours for this special day (null means closed all day)
+
+    # Error schema
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Business not found"
+
+# Migration notes section
+#
+# Database columns needed for implementation (backend ticket will create migrations):
+#
+# businesses table:
+#   - welcome_message TEXT (nullable)
+#   - website TEXT (nullable)
+#   - phone TEXT (nullable)
+#   - logo_url TEXT (nullable)
+#   - accent_color TEXT (nullable, pattern ^#[0-9A-Fa-f]{6}$)
+#   - hero_image_url TEXT (nullable)
+#
+# locations table:
+#   - street TEXT (nullable)
+#   - street2 TEXT (nullable)
+#   - city TEXT (nullable)
+#   - state TEXT (nullable)
+#   - postal_code TEXT (nullable)
+#   - country TEXT (nullable)
+#   - latitude REAL (nullable, -90 to 90)
+#   - longitude REAL (nullable, -180 to 180)
+#   - timezone TEXT (nullable, IANA timezone identifier)
+#   - opening_hours TEXT (nullable, JSON blob following OpeningHours schema)
+#   - special_hours TEXT (nullable, JSON array following SpecialHours schema)
+#
+# The existing locations.address column will be deprecated in favor of the structured fields.
+# The existing locations.metadata column can continue to store additional unstructured data.
