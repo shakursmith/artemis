@@ -1,0 +1,13 @@
+{
+  "id": "evt_9f8e7d6c-5b4a-3e2f-1d0c-9b8a7f6e5d4c",
+  "customerId": "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c",
+  "businessId": "biz_f8e7d6c5-4b3a-2e1f-9d8c-7b6a5e4d3c2b",
+  "locationId": "loc_f4e8c7b6-9d2a-4f1e-8c3b-6a9d4f2e1c8b",
+  "beaconUuid": "E2C56DB5-DFFB-48D2-B060-D0F5A71096E0",
+  "beaconMajor": 1,
+  "beaconMinor": 100,
+  "state": "exited",
+  "proximity": "far",
+  "timestamp": "2026-11-01T14:35:00Z",
+  "createdAt": "2026-11-01T14:35:01Z"
+}
