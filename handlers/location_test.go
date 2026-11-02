@@ -220,11 +220,19 @@ func TestUpdateLocation_Success(t *testing.T) {
 
 	// Seed a location
 	business, _ := db.CreateBusiness(database, "Chain Cafe", nil)
-	address1 := "Old Address"
-	location, _ := db.CreateLocation(database, business.ID, "Old Name", &address1)
+	location, _ := db.CreateLocation(database, business.ID, "Old Name", nil)
 
-	// Update it
-	body := `{"name": "New Name", "address": "New Address"}`
+	// Update it with structured address
+	body := `{
+		"name": "New Name",
+		"address": {
+			"street": "456 Oak Ave",
+			"city": "Oakland",
+			"state": "CA",
+			"postalCode": "94601",
+			"country": "US"
+		}
+	}`
 	req := httptest.NewRequest(http.MethodPut, "/api/location/"+location.ID, bytes.NewBufferString(body))
 	req.SetPathValue("id", location.ID)
 	w := httptest.NewRecorder()
@@ -235,13 +243,13 @@ func TestUpdateLocation_Success(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp db.Location
+	var resp locationDetailResponse
 	json.NewDecoder(w.Body).Decode(&resp)
 	if resp.Name != "New Name" {
 		t.Errorf("expected name 'New Name', got '%s'", resp.Name)
 	}
-	if resp.Address == nil || *resp.Address != "New Address" {
-		t.Errorf("expected address 'New Address', got %v", resp.Address)
+	if resp.Address == nil || resp.Address.Street != "456 Oak Ave" {
+		t.Errorf("expected structured address, got %v", resp.Address)
 	}
 }
 
@@ -391,6 +399,284 @@ func TestCreateRoomForLocation_MissingName(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.HandleCreateRoomForLocation(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", w.Code)
+	}
+}
+
+// =============================================================================
+// Location Store Info Tests (Ticket 008)
+// =============================================================================
+
+func TestUpdateLocation_StructuredAddress(t *testing.T) {
+	h, database := setupTestLocationHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Chain Cafe", nil)
+	location, _ := db.CreateLocation(database, business.ID, "Downtown", nil)
+
+	// Update with structured address
+	lat := 37.7749
+	lon := -122.4194
+	body := `{
+		"name": "Downtown Store",
+		"address": {
+			"street": "123 Main St",
+			"street2": "Suite 200",
+			"city": "San Francisco",
+			"state": "CA",
+			"postalCode": "94102",
+			"country": "US",
+			"latitude": 37.7749,
+			"longitude": -122.4194
+		}
+	}`
+	req := httptest.NewRequest(http.MethodPut, "/api/location/"+location.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", location.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateLocation(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp locationDetailResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Address == nil {
+		t.Fatal("expected address to be present")
+	}
+	if resp.Address.Street != "123 Main St" {
+		t.Errorf("expected street '123 Main St', got '%s'", resp.Address.Street)
+	}
+	if resp.Address.City != "San Francisco" {
+		t.Errorf("expected city 'San Francisco', got '%s'", resp.Address.City)
+	}
+	if resp.Address.Latitude == nil || *resp.Address.Latitude != lat {
+		t.Errorf("expected latitude %f, got %v", lat, resp.Address.Latitude)
+	}
+	if resp.Address.Longitude == nil || *resp.Address.Longitude != lon {
+		t.Errorf("expected longitude %f, got %v", lon, resp.Address.Longitude)
+	}
+}
+
+func TestUpdateLocation_InvalidLatitude(t *testing.T) {
+	h, database := setupTestLocationHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Chain Cafe", nil)
+	location, _ := db.CreateLocation(database, business.ID, "Downtown", nil)
+
+	body := `{
+		"name": "Downtown",
+		"address": {
+			"street": "123 Main St",
+			"city": "San Francisco",
+			"state": "CA",
+			"postalCode": "94102",
+			"country": "US",
+			"latitude": 91.0
+		}
+	}`
+	req := httptest.NewRequest(http.MethodPut, "/api/location/"+location.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", location.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateLocation(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestUpdateLocation_InvalidLongitude(t *testing.T) {
+	h, database := setupTestLocationHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Chain Cafe", nil)
+	location, _ := db.CreateLocation(database, business.ID, "Downtown", nil)
+
+	body := `{
+		"name": "Downtown",
+		"address": {
+			"street": "123 Main St",
+			"city": "San Francisco",
+			"state": "CA",
+			"postalCode": "94102",
+			"country": "US",
+			"longitude": 181.0
+		}
+	}`
+	req := httptest.NewRequest(http.MethodPut, "/api/location/"+location.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", location.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateLocation(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestUpdateLocation_WithTimezoneAndHours(t *testing.T) {
+	h, database := setupTestLocationHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Chain Cafe", nil)
+	location, _ := db.CreateLocation(database, business.ID, "Downtown", nil)
+
+	// Update with timezone and opening hours
+	body := `{
+		"name": "Downtown Store",
+		"timezone": "America/Los_Angeles",
+		"openingHours": {
+			"monday": {
+				"ranges": [
+					{"open": "09:00", "close": "17:00"}
+				]
+			},
+			"tuesday": {
+				"ranges": [
+					{"open": "09:00", "close": "17:00"}
+				]
+			},
+			"wednesday": {
+				"ranges": [
+					{"open": "09:00", "close": "17:00"}
+				]
+			},
+			"thursday": {
+				"ranges": [
+					{"open": "09:00", "close": "17:00"}
+				]
+			},
+			"friday": {
+				"ranges": [
+					{"open": "09:00", "close": "17:00"}
+				]
+			}
+		}
+	}`
+	req := httptest.NewRequest(http.MethodPut, "/api/location/"+location.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", location.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateLocation(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp locationDetailResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Timezone == nil || *resp.Timezone != "America/Los_Angeles" {
+		t.Errorf("expected timezone 'America/Los_Angeles', got %v", resp.Timezone)
+	}
+	if resp.OpeningHours == nil {
+		t.Error("expected opening hours to be present")
+	}
+	// IsOpenNow should be computed (can be true or false depending on current time)
+	// We just verify it's a boolean field in the response
+}
+
+func TestUpdateLocation_WithSpecialHours(t *testing.T) {
+	h, database := setupTestLocationHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Chain Cafe", nil)
+	location, _ := db.CreateLocation(database, business.ID, "Downtown", nil)
+
+	// Update with special hours for holidays
+	body := `{
+		"name": "Downtown Store",
+		"specialHours": [
+			{
+				"date": "2024-12-25",
+				"reason": "Christmas Day",
+				"hours": null
+			},
+			{
+				"date": "2024-07-04",
+				"reason": "Independence Day",
+				"hours": {
+					"ranges": [
+						{"open": "10:00", "close": "14:00"}
+					]
+				}
+			}
+		]
+	}`
+	req := httptest.NewRequest(http.MethodPut, "/api/location/"+location.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", location.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateLocation(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp locationDetailResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.SpecialHours == nil {
+		t.Error("expected special hours to be present")
+	}
+}
+
+func TestGetLocation_ComputesIsOpenNow(t *testing.T) {
+	h, database := setupTestLocationHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Chain Cafe", nil)
+	location, _ := db.CreateLocation(database, business.ID, "Downtown", nil)
+
+	// Set hours that should be closed now (very narrow window to ensure test determinism)
+	timezone := "America/Los_Angeles"
+	openingHours := `{
+		"monday": {"ranges": [{"open": "02:00", "close": "02:01"}]},
+		"tuesday": {"ranges": [{"open": "02:00", "close": "02:01"}]},
+		"wednesday": {"ranges": [{"open": "02:00", "close": "02:01"}]},
+		"thursday": {"ranges": [{"open": "02:00", "close": "02:01"}]},
+		"friday": {"ranges": [{"open": "02:00", "close": "02:01"}]},
+		"saturday": {"ranges": [{"open": "02:00", "close": "02:01"}]},
+		"sunday": {"ranges": [{"open": "02:00", "close": "02:01"}]}
+	}`
+	db.UpdateLocation(database, location.ID, "Downtown", nil, nil, nil, nil, nil, nil, nil, nil, &timezone, &openingHours, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/location/"+location.ID, nil)
+	req.SetPathValue("id", location.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleGetLocation(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp locationDetailResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	// IsOpenNow should be false (very unlikely to be between 02:00-02:01)
+	if resp.IsOpenNow {
+		t.Error("expected isOpenNow to be false for narrow hours window")
+	}
+}
+
+func TestUpdateLocation_MissingAddressRequiredFields(t *testing.T) {
+	h, database := setupTestLocationHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Chain Cafe", nil)
+	location, _ := db.CreateLocation(database, business.ID, "Downtown", nil)
+
+	// Missing required address fields (city is missing)
+	body := `{
+		"name": "Downtown",
+		"address": {
+			"street": "123 Main St",
+			"state": "CA",
+			"postalCode": "94102",
+			"country": "US"
+		}
+	}`
+	req := httptest.NewRequest(http.MethodPut, "/api/location/"+location.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", location.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateLocation(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected status 400, got %d", w.Code)

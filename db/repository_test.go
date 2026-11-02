@@ -995,7 +995,7 @@ func TestUpdateBusiness(t *testing.T) {
 	created, _ := CreateBusiness(database, "Old Cafe", &ownerName)
 
 	newOwner := "Bob"
-	updated, err := UpdateBusiness(database, created.ID, "New Cafe", &newOwner)
+	updated, err := UpdateBusiness(database, created.ID, "New Cafe", &newOwner, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -1014,7 +1014,7 @@ func TestUpdateBusiness(t *testing.T) {
 func TestUpdateBusinessNotFound(t *testing.T) {
 	database := setupTestDB(t)
 
-	_, err := UpdateBusiness(database, "nonexistent", "Name", nil)
+	_, err := UpdateBusiness(database, "nonexistent", "Name", nil, nil, nil, nil, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error for nonexistent business, got nil")
 	}
@@ -1182,8 +1182,13 @@ func TestUpdateLocation(t *testing.T) {
 	address1 := "Old Address"
 	created, _ := CreateLocation(database, business.ID, "Old Name", &address1)
 
-	address2 := "New Address"
-	updated, err := UpdateLocation(database, created.ID, "New Name", &address2)
+	// Update using new structured address (though we're still testing the old address field)
+	street := "123 New St"
+	city := "New City"
+	state := "CA"
+	postalCode := "12345"
+	country := "US"
+	updated, err := UpdateLocation(database, created.ID, "New Name", &street, nil, &city, &state, &postalCode, &country, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -1191,8 +1196,8 @@ func TestUpdateLocation(t *testing.T) {
 	if updated.Name != "New Name" {
 		t.Errorf("expected name 'New Name', got '%s'", updated.Name)
 	}
-	if updated.Address == nil || *updated.Address != "New Address" {
-		t.Errorf("expected address 'New Address', got %v", updated.Address)
+	if updated.Street == nil || *updated.Street != "123 New St" {
+		t.Errorf("expected street '123 New St', got %v", updated.Street)
 	}
 	if updated.UpdatedAt.Before(created.CreatedAt) {
 		t.Error("expected updated_at to be >= created_at")
@@ -1202,7 +1207,7 @@ func TestUpdateLocation(t *testing.T) {
 func TestUpdateLocationNotFound(t *testing.T) {
 	database := setupTestDB(t)
 
-	_, err := UpdateLocation(database, "nonexistent", "Name", nil)
+	_, err := UpdateLocation(database, "nonexistent", "Name", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error for nonexistent location, got nil")
 	}
