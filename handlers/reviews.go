@@ -89,23 +89,12 @@ type businessReplyNested struct {
 	RepliedBy string `json:"repliedBy"`
 }
 
-// imageUploadRequest is the JSON body for POST /api/reviews/image-upload
-type imageUploadRequest struct {
-	Filename    string `json:"filename"`
-	ContentType string `json:"contentType"`
-	SizeBytes   int    `json:"sizeBytes"`
-}
-
-// imageUploadResponse is the response for POST /api/reviews/image-upload
-type imageUploadResponse struct {
-	UploadURL string `json:"uploadUrl"`
-	PublicURL string `json:"publicUrl"`
-	ExpiresAt string `json:"expiresAt"`
-}
-
 // =============================================================================
 // Helper Functions
 // =============================================================================
+
+// Note: imageUploadRequest and imageUploadResponse types are shared with
+// product_catalog.go and are defined there to avoid duplication.
 
 // generateUUID creates a random UUID v4 string.
 // Matches the implementation in db/repository.go to avoid pulling in a UUID library.
