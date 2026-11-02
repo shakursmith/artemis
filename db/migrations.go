@@ -260,6 +260,30 @@ var migrations = []string{
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (modifier_group_id) REFERENCES modifier_groups(id) ON DELETE CASCADE
 	);`,
+
+	// reviews table — customer reviews of businesses
+	// Reviews are business-level (not product-level) as this fits food trucks,
+	// market stalls, and small food businesses where the overall experience matters.
+	// Business replies are embedded in the same table (one reply per review).
+	// Flagged reviews remain visible but are marked for moderation (no auto-hiding yet).
+	// photo_urls is stored as JSON array.
+	// For now, customer_id is a UUID string (customers table doesn't exist yet).
+	`CREATE TABLE IF NOT EXISTS reviews (
+		id TEXT PRIMARY KEY,
+		customer_id TEXT NOT NULL,
+		business_id TEXT NOT NULL,
+		rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+		review_text TEXT,
+		photo_urls TEXT,
+		business_reply_text TEXT,
+		business_reply_at DATETIME,
+		business_replied_by TEXT,
+		flagged BOOLEAN DEFAULT 0,
+		flagged_at DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
+	);`,
 }
 
 // RunMigrations executes all schema migrations against the given database connection.
@@ -269,6 +293,20 @@ func RunMigrations(db *sql.DB) error {
 	for _, migration := range migrations {
 		if _, err := db.Exec(migration); err != nil {
 			return err
+		}
+	}
+
+	// Create indexes for reviews table to optimize common queries
+	// These are idempotent — CREATE INDEX IF NOT EXISTS is safe to re-run
+	indexMigrations := []string{
+		`CREATE INDEX IF NOT EXISTS idx_reviews_business_id ON reviews(business_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_reviews_customer_id ON reviews(customer_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON reviews(created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating)`,
+	}
+	for _, idx := range indexMigrations {
+		if _, err := db.Exec(idx); err != nil {
+			return fmt.Errorf("failed to create index: %w", err)
 		}
 	}
 

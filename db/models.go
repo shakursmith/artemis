@@ -307,3 +307,38 @@ type Modifier struct {
 	CreatedAt                 time.Time `json:"createdAt"`
 	UpdatedAt                 time.Time `json:"updatedAt"`
 }
+
+// =============================================================================
+// Reviews Models
+// =============================================================================
+
+// Review represents a customer review of a business.
+// Reviews are business-level (not product-level) as this fits food trucks,
+// market stalls, and small food businesses where the overall experience matters
+// more than individual products.
+// A business can reply to reviews (one reply per review).
+// Reviews can be flagged by business admins as inappropriate, but flagged
+// reviews remain visible (no auto-hiding or approval workflow yet).
+type Review struct {
+	ID                string    `json:"id"`
+	CustomerID        string    `json:"customerId"`        // UUID of the customer who wrote the review
+	BusinessID        string    `json:"businessId"`        // UUID of the business being reviewed
+	Rating            int       `json:"rating"`            // Star rating 1-5
+	ReviewText        *string   `json:"reviewText,omitempty"` // Optional review text
+	PhotoURLs         []string  `json:"photoUrls,omitempty"`  // Optional array of photo URLs (stored as JSON in DB)
+	BusinessReply     *BusinessReply `json:"businessReply,omitempty"` // Optional reply from business
+	Flagged           bool      `json:"flagged"`           // Whether flagged as inappropriate
+	FlaggedAt         *time.Time `json:"flaggedAt,omitempty"` // When flagged (null if not flagged)
+	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
+}
+
+// BusinessReply represents a business's reply to a review.
+// This is a nested object within the Review model.
+// Each review can have at most one reply from the business.
+// Any business admin can add, update, or delete a reply for flexibility.
+type BusinessReply struct {
+	ReplyText  string    `json:"replyText"`
+	RepliedAt  time.Time `json:"repliedAt"`
+	RepliedBy  string    `json:"repliedBy"` // UUID of the admin who replied
+}
