@@ -284,6 +284,53 @@ var migrations = []string{
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
 	);`,
+
+	// =============================================================================
+	// Customer and Arrival Tables
+	// =============================================================================
+
+	// customers table — represents customers who interact with businesses
+	// Each customer has privacy settings that control what businesses can see
+	`CREATE TABLE IF NOT EXISTS customers (
+		id TEXT PRIMARY KEY,
+		first_name TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`,
+
+	// customer_sharing_settings table — privacy controls for customer data
+	// One-to-one relationship with customers table.
+	// sharing_level determines what data is visible: minimal (name only), standard (name + history + loyalty), full (all fields)
+	// blocked_businesses is a JSON array of business UUIDs where sharing is completely disabled
+	`CREATE TABLE IF NOT EXISTS customer_sharing_settings (
+		customer_id TEXT PRIMARY KEY,
+		sharing_level TEXT NOT NULL DEFAULT 'minimal',
+		blocked_businesses TEXT DEFAULT '[]',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+	);`,
+
+	// arrival_events table — records customer arrivals at business locations
+	// Events are detected via BLE beacon proximity and broadcast to kiosks via SSE
+	// state: entered (first detection), dwelling (heartbeat), exited (lost signal)
+	// proximity: immediate (0-0.5m), near (0.5-3m), far (3-10m, triggers exit)
+	`CREATE TABLE IF NOT EXISTS arrival_events (
+		id TEXT PRIMARY KEY,
+		customer_id TEXT NOT NULL,
+		business_id TEXT NOT NULL,
+		location_id TEXT NOT NULL,
+		beacon_uuid TEXT NOT NULL,
+		beacon_major INTEGER NOT NULL,
+		beacon_minor INTEGER NOT NULL,
+		state TEXT NOT NULL,
+		proximity TEXT NOT NULL,
+		timestamp DATETIME NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+		FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE
+	);`,
 }
 
 // RunMigrations executes all schema migrations against the given database connection.

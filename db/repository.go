@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -25,6 +26,20 @@ func generateUUID() string {
 		hex.EncodeToString(b[8:10]),
 		hex.EncodeToString(b[10:16]),
 	)
+}
+
+// parseJSON parses a JSON string into the given destination.
+func parseJSON(data string, dest interface{}) error {
+	return json.Unmarshal([]byte(data), dest)
+}
+
+// serializeJSON serializes a value to a JSON string.
+func serializeJSON(v interface{}) (string, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 // =============================================================================
@@ -1254,4 +1269,226 @@ func GetMenuWithOptions(db *sql.DB, roomID string) (*Menu, []MenuOption, error) 
 	}
 
 	return menu, options, nil
+}
+
+// =============================================================================
+// Customer Operations
+// =============================================================================
+
+// CreateCustomer creates a new customer with the given first name.
+// Automatically creates default sharing settings (minimal level).
+func CreateCustomer(db *sql.DB, firstName string) (*Customer, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	// Start a transaction to create customer and settings atomically
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Create customer
+	_, err = tx.Exec(
+		"INSERT INTO customers (id, first_name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+		id, firstName, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create customer: %w", err)
+	}
+
+	// Create default sharing settings (minimal level)
+	_, err = tx.Exec(
+		"INSERT INTO customer_sharing_settings (customer_id, sharing_level, blocked_businesses, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+		id, "minimal", "[]", now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create customer sharing settings: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &Customer{
+		ID:        id,
+		FirstName: firstName,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, nil
+}
+
+// GetCustomer retrieves a single customer by ID.
+func GetCustomer(db *sql.DB, id string) (*Customer, error) {
+	var c Customer
+	err := db.QueryRow(
+		"SELECT id, first_name, created_at, updated_at FROM customers WHERE id = ?", id,
+	).Scan(&c.ID, &c.FirstName, &c.CreatedAt, &c.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("customer not found: %s", id)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get customer: %w", err)
+	}
+	return &c, nil
+}
+
+// UpdateCustomer changes the first name of an existing customer.
+func UpdateCustomer(db *sql.DB, id string, firstName string) (*Customer, error) {
+	now := time.Now().UTC()
+	result, err := db.Exec(
+		"UPDATE customers SET first_name = ?, updated_at = ? WHERE id = ?",
+		firstName, now, id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update customer: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("customer not found: %s", id)
+	}
+
+	return GetCustomer(db, id)
+}
+
+// GetCustomerSharingSettings retrieves sharing settings for a customer.
+func GetCustomerSharingSettings(db *sql.DB, customerID string) (*CustomerSharingSettings, error) {
+	var settings CustomerSharingSettings
+	var blockedBusinessesJSON string
+
+	err := db.QueryRow(
+		"SELECT customer_id, sharing_level, blocked_businesses, created_at, updated_at FROM customer_sharing_settings WHERE customer_id = ?",
+		customerID,
+	).Scan(&settings.CustomerID, &settings.SharingLevel, &blockedBusinessesJSON, &settings.CreatedAt, &settings.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("customer sharing settings not found: %s", customerID)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get customer sharing settings: %w", err)
+	}
+
+	// Parse blocked businesses JSON array
+	settings.BlockedBusinesses = []string{}
+	if blockedBusinessesJSON != "[]" && blockedBusinessesJSON != "" {
+		if err := parseJSON(blockedBusinessesJSON, &settings.BlockedBusinesses); err != nil {
+			return nil, fmt.Errorf("failed to parse blocked businesses: %w", err)
+		}
+	}
+
+	return &settings, nil
+}
+
+// UpdateCustomerSharingSettings updates a customer's sharing settings.
+func UpdateCustomerSharingSettings(db *sql.DB, customerID string, sharingLevel string, blockedBusinesses []string) (*CustomerSharingSettings, error) {
+	now := time.Now().UTC()
+
+	// Ensure blockedBusinesses is not nil
+	if blockedBusinesses == nil {
+		blockedBusinesses = []string{}
+	}
+
+	// Serialize blocked businesses to JSON
+	blockedBusinessesJSON, err := serializeJSON(blockedBusinesses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize blocked businesses: %w", err)
+	}
+
+	result, err := db.Exec(
+		"UPDATE customer_sharing_settings SET sharing_level = ?, blocked_businesses = ?, updated_at = ? WHERE customer_id = ?",
+		sharingLevel, blockedBusinessesJSON, now, customerID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update customer sharing settings: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("customer sharing settings not found: %s", customerID)
+	}
+
+	return GetCustomerSharingSettings(db, customerID)
+}
+
+// =============================================================================
+// Arrival Event Operations
+// =============================================================================
+
+// CreateArrivalEvent records a customer arrival event at a location.
+// The business_id and location_id are resolved from the beacon configuration.
+func CreateArrivalEvent(db *sql.DB, customerID, businessID, locationID, beaconUUID string, beaconMajor, beaconMinor int, state, proximity string, timestamp time.Time) (*ArrivalEvent, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err := db.Exec(
+		`INSERT INTO arrival_events
+		(id, customer_id, business_id, location_id, beacon_uuid, beacon_major, beacon_minor, state, proximity, timestamp, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, customerID, businessID, locationID, beaconUUID, beaconMajor, beaconMinor, state, proximity, timestamp, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create arrival event: %w", err)
+	}
+
+	return &ArrivalEvent{
+		ID:          id,
+		CustomerID:  customerID,
+		BusinessID:  businessID,
+		LocationID:  locationID,
+		BeaconUUID:  beaconUUID,
+		BeaconMajor: beaconMajor,
+		BeaconMinor: beaconMinor,
+		State:       state,
+		Proximity:   proximity,
+		Timestamp:   timestamp,
+		CreatedAt:   now,
+	}, nil
+}
+
+// GetRecentArrivalsByLocation retrieves recent arrival events for a location.
+// Returns events ordered by timestamp descending (most recent first).
+func GetRecentArrivalsByLocation(db *sql.DB, locationID string, limit int) ([]ArrivalEvent, error) {
+	rows, err := db.Query(`
+		SELECT id, customer_id, business_id, location_id, beacon_uuid, beacon_major, beacon_minor, state, proximity, timestamp, created_at
+		FROM arrival_events
+		WHERE location_id = ?
+		ORDER BY timestamp DESC
+		LIMIT ?
+	`, locationID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent arrivals: %w", err)
+	}
+	defer rows.Close()
+
+	var events []ArrivalEvent
+	for rows.Next() {
+		var e ArrivalEvent
+		if err := rows.Scan(&e.ID, &e.CustomerID, &e.BusinessID, &e.LocationID, &e.BeaconUUID, &e.BeaconMajor, &e.BeaconMinor, &e.State, &e.Proximity, &e.Timestamp, &e.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan arrival event row: %w", err)
+		}
+		events = append(events, e)
+	}
+
+	return events, rows.Err()
+}
+
+// FindRoomByBeacon looks up a room by its beacon configuration.
+// Returns the room and its associated business_id and location_id.
+func FindRoomByBeacon(db *sql.DB, beaconUUID string, beaconMajor, beaconMinor int) (roomID, businessID, locationID string, err error) {
+	err = db.QueryRow(`
+		SELECT r.id, r.location_id, l.business_id
+		FROM rooms r
+		INNER JOIN locations l ON l.id = r.location_id
+		WHERE r.beacon_uuid = ? AND r.beacon_major = ? AND r.beacon_minor = ?
+		AND r.location_id IS NOT NULL
+	`, beaconUUID, beaconMajor, beaconMinor).Scan(&roomID, &locationID, &businessID)
+
+	if err == sql.ErrNoRows {
+		return "", "", "", fmt.Errorf("beacon not found: no room configured with UUID %s, major %d, minor %d", beaconUUID, beaconMajor, beaconMinor)
+	}
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to find room by beacon: %w", err)
+	}
+
+	return roomID, businessID, locationID, nil
 }

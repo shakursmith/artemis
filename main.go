@@ -79,6 +79,8 @@ func main() {
 	menuOptionHandler := handlers.NewMenuOptionHandler(database)
 	roomMenuHandler := handlers.NewRoomMenuHandler(database)
 	productCatalogHandler := handlers.NewProductCatalogHandler(database)
+	customerHandler := handlers.NewCustomerHandler(database)
+	arrivalHandler := handlers.NewArrivalHandler(database)
 
 	// Profile endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile", profileHandler.HandleCreateProfile)
@@ -199,6 +201,19 @@ func main() {
 	// Image upload and bulk import
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/product-catalog/image-upload", productCatalogHandler.HandleImageUpload)
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/business/{businessId}/product-menus/bulk-import", productCatalogHandler.HandleBulkMenuImport)
+
+	// Customer endpoints (shop mode)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/customer", customerHandler.HandleCreateCustomer)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/customer/{id}", customerHandler.HandleGetCustomer)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/customer/{id}", customerHandler.HandleUpdateCustomer)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/customer/{id}/sharing", customerHandler.HandleGetSharingSettings)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/customer/{id}/sharing", customerHandler.HandleUpdateSharingSettings)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/customer/{customerId}/profile", customerHandler.HandleGetCustomerProfile)
+
+	// Arrival event endpoints (shop mode)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/arrival", arrivalHandler.HandleReportArrival)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/location/{locationId}/arrivals", arrivalHandler.HandleGetRecentArrivals)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/location/{locationId}/arrivals/stream", arrivalHandler.HandleArrivalStream)
 
 	// ==========================================================================
 	// Integration endpoints — External service control
@@ -359,6 +374,17 @@ func main() {
 	log.Printf("   - POST   %s/modifier-group/{id}/modifiers - Create modifier", cfg.APIBasePath)
 	log.Printf("   - POST   %s/product-catalog/image-upload - Request image upload URL", cfg.APIBasePath)
 	log.Printf("   - POST   %s/business/{id}/product-menus/bulk-import - Bulk import menu", cfg.APIBasePath)
+	log.Printf("  Customer Management (Shop Mode):")
+	log.Printf("   - POST   %s/customer - Create customer", cfg.APIBasePath)
+	log.Printf("   - GET    %s/customer/{id} - Get customer", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/customer/{id} - Update customer", cfg.APIBasePath)
+	log.Printf("   - GET    %s/customer/{id}/sharing - Get sharing settings", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/customer/{id}/sharing - Update sharing settings", cfg.APIBasePath)
+	log.Printf("   - GET    %s/customer/{id}/profile?businessId={bid} - Get customer profile for business", cfg.APIBasePath)
+	log.Printf("  Arrival Events (Shop Mode):")
+	log.Printf("   - POST   %s/arrival - Report arrival event (customer device)", cfg.APIBasePath)
+	log.Printf("   - GET    %s/location/{id}/arrivals - Get recent arrivals", cfg.APIBasePath)
+	log.Printf("   - GET    %s/location/{id}/arrivals/stream - SSE stream for kiosk", cfg.APIBasePath)
 	log.Printf("  Integrations:")
 	log.Printf("   - POST %s/lightbulb/toggle - Toggle lightbulb state", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)
