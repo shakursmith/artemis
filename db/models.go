@@ -342,3 +342,49 @@ type BusinessReply struct {
 	RepliedAt  time.Time `json:"repliedAt"`
 	RepliedBy  string    `json:"repliedBy"` // UUID of the admin who replied
 }
+
+// =============================================================================
+// Customer and Arrival Models
+// =============================================================================
+
+// Customer represents a customer who interacts with businesses through the app.
+// Customers can visit locations, make purchases, and control what information
+// businesses can see through their sharing settings.
+type Customer struct {
+	ID        string    `json:"id"`
+	FirstName string    `json:"firstName"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// CustomerSharingSettings represents a customer's privacy preferences for sharing
+// information with businesses. Controls what data is visible in customer profiles.
+// Sharing levels:
+//   - minimal: First name only (default for new customers)
+//   - standard: First name + purchase history summary + loyalty status
+//   - full: All available data including review count
+type CustomerSharingSettings struct {
+	CustomerID        string    `json:"customerId"`
+	SharingLevel      string    `json:"sharingLevel"` // "minimal", "standard", or "full"
+	BlockedBusinesses []string  `json:"blockedBusinesses"` // list of business UUIDs where sharing is disabled
+	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
+}
+
+// ArrivalEvent represents a customer's arrival at a business location, detected
+// via BLE beacon proximity. Events track the customer's state (entered, dwelling, exited)
+// and proximity band (immediate, near, far) as they move through the location.
+// These events are broadcast to kiosks via SSE for real-time customer arrival notifications.
+type ArrivalEvent struct {
+	ID         string    `json:"id"`
+	CustomerID string    `json:"customerId"`
+	BusinessID string    `json:"businessId"` // resolved from beacon
+	LocationID string    `json:"locationId"` // resolved from beacon
+	BeaconUUID string    `json:"beaconUuid"` // iBeacon proximity UUID
+	BeaconMajor int      `json:"beaconMajor"` // iBeacon major value
+	BeaconMinor int      `json:"beaconMinor"` // iBeacon minor value
+	State      string    `json:"state"`       // "entered", "dwelling", or "exited"
+	Proximity  string    `json:"proximity"`   // "immediate", "near", or "far"
+	Timestamp  time.Time `json:"timestamp"`   // when the event occurred on the device
+	CreatedAt  time.Time `json:"createdAt"`   // when the event was recorded by the backend
+}
