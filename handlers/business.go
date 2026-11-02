@@ -33,18 +33,30 @@ type createBusinessRequest struct {
 // businessDetailResponse is the enriched business response that includes
 // associated locations. Used by GET /api/business/{id}.
 type businessDetailResponse struct {
-	ID        string        `json:"id"`
-	Name      string        `json:"name"`
-	OwnerName *string       `json:"ownerName,omitempty"`
-	Locations []db.Location `json:"locations"`
-	CreatedAt string        `json:"createdAt"`
-	UpdatedAt string        `json:"updatedAt"`
+	ID             string        `json:"id"`
+	Name           string        `json:"name"`
+	OwnerName      *string       `json:"ownerName,omitempty"`
+	WelcomeMessage *string       `json:"welcomeMessage,omitempty"`
+	Website        *string       `json:"website,omitempty"`
+	Phone          *string       `json:"phone,omitempty"`
+	LogoURL        *string       `json:"logoUrl,omitempty"`
+	AccentColor    *string       `json:"accentColor,omitempty"`
+	HeroImageURL   *string       `json:"heroImageUrl,omitempty"`
+	Locations      []db.Location `json:"locations"`
+	CreatedAt      string        `json:"createdAt"`
+	UpdatedAt      string        `json:"updatedAt"`
 }
 
 // updateBusinessRequest is the JSON body for PUT /api/business/{id}
 type updateBusinessRequest struct {
-	Name      string  `json:"name"`
-	OwnerName *string `json:"ownerName,omitempty"`
+	Name           string  `json:"name"`
+	OwnerName      *string `json:"ownerName,omitempty"`
+	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
+	Website        *string `json:"website,omitempty"`
+	Phone          *string `json:"phone,omitempty"`
+	LogoURL        *string `json:"logoUrl,omitempty"`
+	AccentColor    *string `json:"accentColor,omitempty"`
+	HeroImageURL   *string `json:"heroImageUrl,omitempty"`
 }
 
 // =============================================================================
@@ -119,21 +131,27 @@ func (h *BusinessHandler) HandleGetBusiness(w http.ResponseWriter, r *http.Reque
 
 	// Build enriched response
 	resp := businessDetailResponse{
-		ID:        business.ID,
-		Name:      business.Name,
-		OwnerName: business.OwnerName,
-		Locations: locations,
-		CreatedAt: business.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt: business.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:             business.ID,
+		Name:           business.Name,
+		OwnerName:      business.OwnerName,
+		WelcomeMessage: business.WelcomeMessage,
+		Website:        business.Website,
+		Phone:          business.Phone,
+		LogoURL:        business.LogoURL,
+		AccentColor:    business.AccentColor,
+		HeroImageURL:   business.HeroImageURL,
+		Locations:      locations,
+		CreatedAt:      business.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:      business.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// HandleUpdateBusiness updates a business's name and owner name.
+// HandleUpdateBusiness updates a business's name, owner name, and branding fields.
 // PUT /api/business/{id}
-// Request body: {"name": "New Name", "ownerName": "New Owner"}
-// Response (200): updated business object
+// Request body: {"name": "New Name", "ownerName": "New Owner", "logoUrl": "...", etc.}
+// Response (200): updated business object with all fields
 func (h *BusinessHandler) HandleUpdateBusiness(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
@@ -155,8 +173,22 @@ func (h *BusinessHandler) HandleUpdateBusiness(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Validate accent color format if provided
+	if req.AccentColor != nil && *req.AccentColor != "" {
+		if !isValidHexColor(*req.AccentColor) {
+			writeError(w, http.StatusBadRequest, "Accent color must be in hex format (#RRGGBB)")
+			return
+		}
+	}
+
+	// Validate welcome message length if provided
+	if req.WelcomeMessage != nil && len(*req.WelcomeMessage) > 500 {
+		writeError(w, http.StatusBadRequest, "Welcome message must be 500 characters or less")
+		return
+	}
+
 	// Update the business
-	business, err := db.UpdateBusiness(h.DB, id, req.Name, req.OwnerName)
+	business, err := db.UpdateBusiness(h.DB, id, req.Name, req.OwnerName, req.WelcomeMessage, req.Website, req.Phone, req.LogoURL, req.AccentColor, req.HeroImageURL)
 	if err != nil {
 		if isNotFound(err) {
 			writeError(w, http.StatusNotFound, "Business not found")

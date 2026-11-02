@@ -198,6 +198,29 @@ func RunMigrations(db *sql.DB) error {
 		`ALTER TABLE menus ADD COLUMN text_color TEXT DEFAULT '#FFFFFF'`,
 		`ALTER TABLE menus ADD COLUMN icon_color TEXT DEFAULT '#FF9500'`,
 		`ALTER TABLE menus ADD COLUMN collapsed_icon TEXT DEFAULT 'storefront'`,
+
+		// Business branding fields — added in Ticket 008 for store info contract.
+		// These fields are business-wide branding shared across all locations.
+		`ALTER TABLE businesses ADD COLUMN welcome_message TEXT`,
+		`ALTER TABLE businesses ADD COLUMN website TEXT`,
+		`ALTER TABLE businesses ADD COLUMN phone TEXT`,
+		`ALTER TABLE businesses ADD COLUMN logo_url TEXT`,
+		`ALTER TABLE businesses ADD COLUMN accent_color TEXT`,
+		`ALTER TABLE businesses ADD COLUMN hero_image_url TEXT`,
+
+		// Location structured address and hours fields — added in Ticket 008 for store info contract.
+		// These fields enable geocoding, timezone-aware hours, and customer-facing store info.
+		`ALTER TABLE locations ADD COLUMN street TEXT`,
+		`ALTER TABLE locations ADD COLUMN street2 TEXT`,
+		`ALTER TABLE locations ADD COLUMN city TEXT`,
+		`ALTER TABLE locations ADD COLUMN state TEXT`,
+		`ALTER TABLE locations ADD COLUMN postal_code TEXT`,
+		`ALTER TABLE locations ADD COLUMN country TEXT`,
+		`ALTER TABLE locations ADD COLUMN latitude REAL`,
+		`ALTER TABLE locations ADD COLUMN longitude REAL`,
+		`ALTER TABLE locations ADD COLUMN timezone TEXT`,
+		`ALTER TABLE locations ADD COLUMN opening_hours TEXT`,
+		`ALTER TABLE locations ADD COLUMN special_hours TEXT`,
 	}
 	for _, alter := range alterMigrations {
 		_, err := db.Exec(alter)

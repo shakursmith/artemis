@@ -280,3 +280,131 @@ func TestDeleteBusiness_Cascade(t *testing.T) {
 		t.Error("expected location to be deleted via cascade")
 	}
 }
+
+// =============================================================================
+// Business Branding Fields Tests (Ticket 008)
+// =============================================================================
+
+func TestUpdateBusiness_BrandingFields(t *testing.T) {
+	h, database := setupTestBusinessHandler(t)
+
+	// Seed a business
+	business, _ := db.CreateBusiness(database, "Coffee Shop", nil)
+
+	// Update with all branding fields
+	body := `{
+		"name": "Coffee Shop",
+		"ownerName": "Jane",
+		"welcomeMessage": "Welcome to our shop!",
+		"website": "https://coffeeshop.com",
+		"phone": "+14155551234",
+		"logoUrl": "https://cdn.example.com/logo.png",
+		"accentColor": "#8B4513",
+		"heroImageUrl": "https://cdn.example.com/hero.jpg"
+	}`
+	req := httptest.NewRequest(http.MethodPut, "/api/business/"+business.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", business.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateBusiness(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp db.Business
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.WelcomeMessage == nil || *resp.WelcomeMessage != "Welcome to our shop!" {
+		t.Errorf("expected welcome message, got %v", resp.WelcomeMessage)
+	}
+	if resp.Website == nil || *resp.Website != "https://coffeeshop.com" {
+		t.Errorf("expected website, got %v", resp.Website)
+	}
+	if resp.Phone == nil || *resp.Phone != "+14155551234" {
+		t.Errorf("expected phone, got %v", resp.Phone)
+	}
+	if resp.LogoURL == nil || *resp.LogoURL != "https://cdn.example.com/logo.png" {
+		t.Errorf("expected logo URL, got %v", resp.LogoURL)
+	}
+	if resp.AccentColor == nil || *resp.AccentColor != "#8B4513" {
+		t.Errorf("expected accent color #8B4513, got %v", resp.AccentColor)
+	}
+	if resp.HeroImageURL == nil || *resp.HeroImageURL != "https://cdn.example.com/hero.jpg" {
+		t.Errorf("expected hero image URL, got %v", resp.HeroImageURL)
+	}
+}
+
+func TestUpdateBusiness_InvalidHexColor(t *testing.T) {
+	h, database := setupTestBusinessHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Coffee Shop", nil)
+
+	body := `{"name": "Coffee Shop", "accentColor": "not-a-color"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/business/"+business.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", business.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateBusiness(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestUpdateBusiness_WelcomeMessageTooLong(t *testing.T) {
+	h, database := setupTestBusinessHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Coffee Shop", nil)
+
+	// Create a message longer than 500 characters
+	longMessage := ""
+	for i := 0; i < 501; i++ {
+		longMessage += "a"
+	}
+
+	body := `{"name": "Coffee Shop", "welcomeMessage": "` + longMessage + `"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/business/"+business.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", business.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateBusiness(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestGetBusiness_IncludesBrandingFields(t *testing.T) {
+	h, database := setupTestBusinessHandler(t)
+
+	// Create business with branding fields
+	ownerName := "Jane"
+	welcomeMsg := "Welcome!"
+	website := "https://example.com"
+	phone := "+14155551234"
+	logoURL := "https://cdn.example.com/logo.png"
+	accentColor := "#FF5733"
+	heroImageURL := "https://cdn.example.com/hero.jpg"
+
+	business, _ := db.CreateBusiness(database, "Branded Cafe", &ownerName)
+	db.UpdateBusiness(database, business.ID, "Branded Cafe", &ownerName, &welcomeMsg, &website, &phone, &logoURL, &accentColor, &heroImageURL)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/business/"+business.ID, nil)
+	req.SetPathValue("id", business.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleGetBusiness(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp businessDetailResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.WelcomeMessage == nil || *resp.WelcomeMessage != "Welcome!" {
+		t.Errorf("expected welcome message in GET response, got %v", resp.WelcomeMessage)
+	}
+	if resp.AccentColor == nil || *resp.AccentColor != "#FF5733" {
+		t.Errorf("expected accent color in GET response, got %v", resp.AccentColor)
+	}
+}

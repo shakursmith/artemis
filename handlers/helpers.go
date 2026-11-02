@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -27,4 +28,12 @@ func writeError(w http.ResponseWriter, status int, message string) {
 // from the repository layer. The db package uses "X not found" error strings.
 func isNotFound(err error) bool {
 	return strings.Contains(err.Error(), "not found")
+}
+
+// hexColorPattern matches valid hex color codes in the format #RRGGBB
+var hexColorPattern = regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)
+
+// isValidHexColor validates that a string is a valid hex color in #RRGGBB format.
+func isValidHexColor(color string) bool {
+	return hexColorPattern.MatchString(color)
 }

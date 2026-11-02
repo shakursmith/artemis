@@ -30,23 +30,53 @@ type createLocationRequest struct {
 	Address *string `json:"address,omitempty"`
 }
 
+// addressResponse represents the structured address in the API response.
+type addressResponse struct {
+	Street     string   `json:"street"`
+	Street2    *string  `json:"street2,omitempty"`
+	City       string   `json:"city"`
+	State      string   `json:"state"`
+	PostalCode string   `json:"postalCode"`
+	Country    string   `json:"country"`
+	Latitude   *float64 `json:"latitude,omitempty"`
+	Longitude  *float64 `json:"longitude,omitempty"`
+}
+
 // locationDetailResponse is the enriched location response that includes
-// associated rooms. Used by GET /api/location/{id}.
+// associated rooms and computed isOpenNow field. Used by GET /api/location/{id}.
 type locationDetailResponse struct {
-	ID         string    `json:"id"`
-	BusinessID string    `json:"businessId"`
-	Name       string    `json:"name"`
-	Address    *string   `json:"address,omitempty"`
-	Metadata   *string   `json:"metadata,omitempty"`
-	Rooms      []db.Room `json:"rooms"`
-	CreatedAt  string    `json:"createdAt"`
-	UpdatedAt  string    `json:"updatedAt"`
+	ID           string           `json:"id"`
+	BusinessID   string           `json:"businessId"`
+	Name         string           `json:"name"`
+	Address      *addressResponse `json:"address,omitempty"`
+	Timezone     *string          `json:"timezone,omitempty"`
+	OpeningHours interface{}      `json:"openingHours,omitempty"`  // decoded JSON or nil
+	SpecialHours interface{}      `json:"specialHours,omitempty"`  // decoded JSON or nil
+	IsOpenNow    bool             `json:"isOpenNow"`
+	Rooms        []db.Room        `json:"rooms"`
+	CreatedAt    string           `json:"createdAt"`
+	UpdatedAt    string           `json:"updatedAt"`
+}
+
+// addressRequest represents the structured address in update requests.
+type addressRequest struct {
+	Street     string   `json:"street"`
+	Street2    *string  `json:"street2,omitempty"`
+	City       string   `json:"city"`
+	State      string   `json:"state"`
+	PostalCode string   `json:"postalCode"`
+	Country    string   `json:"country"`
+	Latitude   *float64 `json:"latitude,omitempty"`
+	Longitude  *float64 `json:"longitude,omitempty"`
 }
 
 // updateLocationRequest is the JSON body for PUT /api/location/{id}
 type updateLocationRequest struct {
-	Name    string  `json:"name"`
-	Address *string `json:"address,omitempty"`
+	Name         string          `json:"name"`
+	Address      *addressRequest `json:"address,omitempty"`
+	Timezone     *string         `json:"timezone,omitempty"`
+	OpeningHours interface{}     `json:"openingHours,omitempty"`
+	SpecialHours interface{}     `json:"specialHours,omitempty"`
 }
 
 // =============================================================================
@@ -163,25 +193,64 @@ func (h *LocationHandler) HandleGetLocation(w http.ResponseWriter, r *http.Reque
 		rooms = []db.Room{}
 	}
 
+	// Build structured address response if address fields are present
+	var addressResp *addressResponse
+	if location.Street != nil && location.City != nil && location.State != nil && location.PostalCode != nil && location.Country != nil {
+		addressResp = &addressResponse{
+			Street:     *location.Street,
+			Street2:    location.Street2,
+			City:       *location.City,
+			State:      *location.State,
+			PostalCode: *location.PostalCode,
+			Country:    *location.Country,
+			Latitude:   location.Latitude,
+			Longitude:  location.Longitude,
+		}
+	}
+
+	// Decode opening hours from JSON if present
+	var openingHours interface{}
+	if location.OpeningHours != nil && *location.OpeningHours != "" {
+		var hours db.OpeningHours
+		if err := json.Unmarshal([]byte(*location.OpeningHours), &hours); err == nil {
+			openingHours = hours
+		}
+	}
+
+	// Decode special hours from JSON if present
+	var specialHours interface{}
+	if location.SpecialHours != nil && *location.SpecialHours != "" {
+		var hours []db.SpecialHours
+		if err := json.Unmarshal([]byte(*location.SpecialHours), &hours); err == nil {
+			specialHours = hours
+		}
+	}
+
+	// Compute isOpenNow
+	isOpenNow := db.IsOpenNow(location)
+
 	// Build enriched response
 	resp := locationDetailResponse{
-		ID:         location.ID,
-		BusinessID: location.BusinessID,
-		Name:       location.Name,
-		Address:    location.Address,
-		Metadata:   location.Metadata,
-		Rooms:      rooms,
-		CreatedAt:  location.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:  location.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:           location.ID,
+		BusinessID:   location.BusinessID,
+		Name:         location.Name,
+		Address:      addressResp,
+		Timezone:     location.Timezone,
+		OpeningHours: openingHours,
+		SpecialHours: specialHours,
+		IsOpenNow:    isOpenNow,
+		Rooms:        rooms,
+		CreatedAt:    location.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:    location.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// HandleUpdateLocation updates a location's name and address.
+// HandleUpdateLocation updates a location's name, structured address, timezone, and hours.
 // PUT /api/location/{id}
-// Request body: {"name": "New Name", "address": "New Address"}
-// Response (200): updated location object
+// Request body: {"name": "...", "address": {...}, "timezone": "...", "openingHours": {...}, "specialHours": [...]}
+// Response (200): updated location detail with isOpenNow computed
 func (h *LocationHandler) HandleUpdateLocation(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
@@ -203,8 +272,63 @@ func (h *LocationHandler) HandleUpdateLocation(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Extract structured address fields
+	var street, street2, city, state, postalCode, country *string
+	var latitude, longitude *float64
+	if req.Address != nil {
+		// Validate required address fields
+		if req.Address.Street == "" || req.Address.City == "" || req.Address.State == "" || req.Address.PostalCode == "" || req.Address.Country == "" {
+			writeError(w, http.StatusBadRequest, "Address requires street, city, state, postalCode, and country")
+			return
+		}
+		street = &req.Address.Street
+		street2 = req.Address.Street2
+		city = &req.Address.City
+		state = &req.Address.State
+		postalCode = &req.Address.PostalCode
+		country = &req.Address.Country
+		latitude = req.Address.Latitude
+		longitude = req.Address.Longitude
+
+		// Validate latitude/longitude ranges if provided
+		if latitude != nil && (*latitude < -90 || *latitude > 90) {
+			writeError(w, http.StatusBadRequest, "Latitude must be between -90 and 90")
+			return
+		}
+		if longitude != nil && (*longitude < -180 || *longitude > 180) {
+			writeError(w, http.StatusBadRequest, "Longitude must be between -180 and 180")
+			return
+		}
+	}
+
+	// Encode opening hours to JSON if provided
+	var openingHoursJSON *string
+	if req.OpeningHours != nil {
+		hoursBytes, err := json.Marshal(req.OpeningHours)
+		if err != nil {
+			log.Printf("❌ Failed to encode opening hours: %v", err)
+			writeError(w, http.StatusBadRequest, "Invalid opening hours format")
+			return
+		}
+		hoursStr := string(hoursBytes)
+		openingHoursJSON = &hoursStr
+	}
+
+	// Encode special hours to JSON if provided
+	var specialHoursJSON *string
+	if req.SpecialHours != nil {
+		hoursBytes, err := json.Marshal(req.SpecialHours)
+		if err != nil {
+			log.Printf("❌ Failed to encode special hours: %v", err)
+			writeError(w, http.StatusBadRequest, "Invalid special hours format")
+			return
+		}
+		hoursStr := string(hoursBytes)
+		specialHoursJSON = &hoursStr
+	}
+
 	// Update the location
-	location, err := db.UpdateLocation(h.DB, id, req.Name, req.Address)
+	location, err := db.UpdateLocation(h.DB, id, req.Name, street, street2, city, state, postalCode, country, latitude, longitude, req.Timezone, openingHoursJSON, specialHoursJSON)
 	if err != nil {
 		if isNotFound(err) {
 			writeError(w, http.StatusNotFound, "Location not found")
@@ -215,8 +339,72 @@ func (h *LocationHandler) HandleUpdateLocation(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Fetch associated rooms for the enriched response
+	rooms, err := db.ListRoomsByLocation(h.DB, id)
+	if err != nil {
+		log.Printf("❌ Failed to list rooms for location %s: %v", id, err)
+		writeError(w, http.StatusInternalServerError, "Failed to get location rooms")
+		return
+	}
+
+	// Return nil slices as empty arrays in JSON
+	if rooms == nil {
+		rooms = []db.Room{}
+	}
+
+	// Build structured address response if address fields are present
+	var addressResp *addressResponse
+	if location.Street != nil && location.City != nil && location.State != nil && location.PostalCode != nil && location.Country != nil {
+		addressResp = &addressResponse{
+			Street:     *location.Street,
+			Street2:    location.Street2,
+			City:       *location.City,
+			State:      *location.State,
+			PostalCode: *location.PostalCode,
+			Country:    *location.Country,
+			Latitude:   location.Latitude,
+			Longitude:  location.Longitude,
+		}
+	}
+
+	// Decode opening hours from JSON if present
+	var openingHours interface{}
+	if location.OpeningHours != nil && *location.OpeningHours != "" {
+		var hours db.OpeningHours
+		if err := json.Unmarshal([]byte(*location.OpeningHours), &hours); err == nil {
+			openingHours = hours
+		}
+	}
+
+	// Decode special hours from JSON if present
+	var specialHours interface{}
+	if location.SpecialHours != nil && *location.SpecialHours != "" {
+		var hours []db.SpecialHours
+		if err := json.Unmarshal([]byte(*location.SpecialHours), &hours); err == nil {
+			specialHours = hours
+		}
+	}
+
+	// Compute isOpenNow
+	isOpenNow := db.IsOpenNow(location)
+
+	// Build enriched response
+	resp := locationDetailResponse{
+		ID:           location.ID,
+		BusinessID:   location.BusinessID,
+		Name:         location.Name,
+		Address:      addressResp,
+		Timezone:     location.Timezone,
+		OpeningHours: openingHours,
+		SpecialHours: specialHours,
+		IsOpenNow:    isOpenNow,
+		Rooms:        rooms,
+		CreatedAt:    location.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:    location.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+
 	log.Printf("📍 Updated location: %s (id: %s)", location.Name, location.ID)
-	writeJSON(w, http.StatusOK, location)
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // HandleDeleteLocation deletes a location and all associated rooms (cascade).
