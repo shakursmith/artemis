@@ -1,0 +1,1265 @@
+openapi: 3.0.0
+info:
+  title: Artemis Cart and Checkout API
+  version: 1.0.0
+  description: |
+    Cart, order, and checkout API for managing customer orders in shop mode.
+
+    ## Cart Model
+
+    Each cart belongs to a customer and a business. A customer can have only
+    one active cart per business at a time. Creating a new cart for the same
+    customer and business will replace any existing cart.
+
+    Cart line items reference products from the product catalog (contracts/product-catalog.yaml).
+    Line items include quantity and selected modifiers. The cart tracks created
+    and updated timestamps for staleness detection.
+
+    ## Order Model
+
+    Orders are created from carts. When an order is placed, the cart's line items
+    are snapshotted into the order (not references, since menu items may change).
+    Orders include pricing (subtotal, tax, total), order type (order-ahead or ASAP),
+    and payment information.
+
+    ## Order Types
+
+    - **order-ahead**: Customer places order in advance with a requested pickup time
+    - **asap**: Customer is at the business and wants immediate fulfillment
+
+    ## Order Lifecycle
+
+    Order status transitions follow a defined flow:
+
+    1. **pending** → Order created, awaiting business confirmation
+    2. **confirmed** → Business accepted the order, will fulfill it
+    3. **preparing** → Business is actively preparing the order
+    4. **ready** → Order is ready for pickup/delivery
+    5. **completed** → Customer received the order
+    6. **cancelled** → Order was cancelled (by customer or business)
+
+    ### Status Transitions and Triggers
+
+    | From | To | Trigger |
+    |------|-------|---------|
+    | pending | confirmed | Business accepts order |
+    | pending | cancelled | Business or customer cancels |
+    | confirmed | preparing | Business starts preparation |
+    | confirmed | cancelled | Business or customer cancels |
+    | preparing | ready | Business marks order ready |
+    | preparing | cancelled | Business cancels (e.g., ran out of ingredient) |
+    | ready | completed | Customer picks up order |
+    | ready | cancelled | Business cancels (e.g., customer no-show after timeout) |
+
+    ## Payment Model
+
+    Payment is abstracted through a payment provider interface. The order tracks:
+    - Provider name (e.g., "stripe", "square", "stub")
+    - Payment intent/reference ID from the provider
+    - Payment status (unpaid, authorized, captured, failed, refunded)
+
+    The stub provider is used for testing and development. Real providers will be
+    integrated later.
+
+    ## Cancellations and Refunds
+
+    Cancellation rules:
+    - Customer can cancel when status is pending or confirmed
+    - Business can cancel at any status except completed
+    - Cancellation after payment capture triggers a refund
+
+    Payment status handles refunds:
+    - "refunded" indicates a full refund was issued
+    - Partial refunds are not currently supported (future enhancement)
+
+    ## Real-time Order Updates
+
+    The kiosk (business interface) receives live order updates via Server-Sent Events (SSE).
+
+    **Rationale for SSE:**
+    - Simpler than WebSocket (no bidirectional communication needed)
+    - Automatic reconnection handling in modern browsers
+    - Works over standard HTTP/HTTPS
+    - Lower overhead than polling
+
+    **SSE Event Types:**
+    - "new_order": A new order arrived for the location
+    - "order_updated": An order status changed (e.g., customer cancelled)
+
+    **Reconnect Behavior:**
+    - SSE connections include a Last-Event-ID header on reconnect
+    - Backend tracks recent events (last 10 minutes) and replays missed events
+    - Kiosk refreshes full order list on reconnect if Last-Event-ID is too old
+
+    ## Migration Notes
+
+    The backend implementation will require the following database tables:
+
+    ### carts
+    - `id` (UUID, primary key)
+    - `customer_id` (UUID, foreign key to customers table)
+    - `business_id` (UUID, foreign key to businesses table)
+    - `created_at` (timestamp)
+    - `updated_at` (timestamp)
+    - Unique constraint on (customer_id, business_id) to enforce one cart per customer per business
+
+    ### cart_line_items
+    - `id` (UUID, primary key)
+    - `cart_id` (UUID, foreign key to carts table, cascading delete)
+    - `item_id` (UUID, reference to product catalog items table)
+    - `quantity` (integer, > 0)
+    - `created_at` (timestamp)
+    - `updated_at` (timestamp)
+
+    ### cart_line_item_modifiers
+    - `id` (UUID, primary key)
+    - `cart_line_item_id` (UUID, foreign key to cart_line_items table, cascading delete)
+    - `modifier_id` (UUID, reference to product catalog modifiers table)
+    - Junction table to track selected modifiers for each line item
+
+    ### orders
+    - `id` (UUID, primary key)
+    - `customer_id` (UUID, foreign key to customers table)
+    - `business_id` (UUID, foreign key to businesses table)
+    - `location_id` (UUID, foreign key to locations table)
+    - `order_type` (enum: order-ahead, asap)
+    - `requested_pickup_time` (timestamp, nullable - only for order-ahead)
+    - `status` (enum: pending, confirmed, preparing, ready, completed, cancelled)
+    - `subtotal_minor_units` (integer)
+    - `tax_minor_units` (integer)
+    - `total_minor_units` (integer)
+    - `currency_code` (string, ISO 4217)
+    - `payment_provider` (string: stripe, square, stub)
+    - `payment_intent_id` (string)
+    - `payment_status` (enum: unpaid, authorized, captured, failed, refunded)
+    - `created_at` (timestamp)
+    - `updated_at` (timestamp)
+    - Index on (location_id, status) for kiosk queries
+    - Index on (customer_id, created_at) for customer order history
+
+    ### order_line_items
+    - `id` (UUID, primary key)
+    - `order_id` (UUID, foreign key to orders table, cascading delete)
+    - `item_id` (UUID, reference to original catalog item - for reference only)
+    - `item_name` (string, snapshot)
+    - `item_price_minor_units` (integer, snapshot)
+    - `quantity` (integer, > 0)
+    - `line_item_total_minor_units` (integer, calculated total)
+    - `created_at` (timestamp)
+
+    ### order_line_item_modifiers
+    - `id` (UUID, primary key)
+    - `order_line_item_id` (UUID, foreign key to order_line_items table, cascading delete)
+    - `modifier_id` (UUID, reference to original catalog modifier - for reference only)
+    - `modifier_name` (string, snapshot)
+    - `price_adjustment_minor_units` (integer, snapshot)
+    - Snapshot table to preserve modifier details at order time
+
+    ### order_events (optional, for SSE event replay)
+    - `id` (serial, primary key)
+    - `location_id` (UUID, foreign key to locations table)
+    - `event_type` (enum: new_order, order_updated)
+    - `order_id` (UUID, foreign key to orders table)
+    - `event_data` (JSON, serialized OrderEvent payload)
+    - `created_at` (timestamp)
+    - Index on (location_id, created_at) for efficient event replay
+    - TTL or cleanup job to remove events older than 10 minutes
+
+servers:
+  - url: /api
+    description: Default API base path (configurable via API_BASE_PATH env var)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Optional for now, reserved for future use.
+        Once authentication is implemented, this header will be required.
+        Endpoints will return 401 Unauthorized if the token is missing or invalid.
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+      required:
+        - error
+      example:
+        error: "Cart not found"
+
+    # ===========================================================================
+    # Cart Models
+    # ===========================================================================
+
+    Cart:
+      type: object
+      description: |
+        A shopping cart for a customer at a specific business. Contains line items
+        referencing products from the product catalog. A customer can have only one
+        active cart per business.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique cart identifier (UUID v4)
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        customerId:
+          type: string
+          format: uuid
+          description: Customer who owns this cart
+          example: "c1d2e3f4-a5b6-7890-cdef-123456789012"
+        businessId:
+          type: string
+          format: uuid
+          description: Business this cart is for
+          example: "b1c2d3e4-f5a6-7890-bcde-f12345678901"
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:32:45Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last update
+          example: "2024-11-01T18:35:12Z"
+      required:
+        - id
+        - customerId
+        - businessId
+        - createdAt
+        - updatedAt
+
+    CartLineItem:
+      type: object
+      description: |
+        A line item in a cart. References a product item from the product catalog
+        and includes quantity and selected modifiers.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique line item identifier (UUID v4)
+          example: "d1e2f3a4-b5c6-7890-def1-234567890123"
+        cartId:
+          type: string
+          format: uuid
+          description: Cart this line item belongs to
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        itemId:
+          type: string
+          format: uuid
+          description: Product item ID from catalog
+          example: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+        quantity:
+          type: integer
+          description: Quantity of this item
+          example: 2
+          minimum: 1
+        modifiers:
+          type: array
+          description: Selected modifiers for this item
+          items:
+            $ref: '#/components/schemas/SelectedModifier'
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:33:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last update
+          example: "2024-11-01T18:35:12Z"
+      required:
+        - id
+        - cartId
+        - itemId
+        - quantity
+        - createdAt
+        - updatedAt
+
+    SelectedModifier:
+      type: object
+      description: |
+        A modifier selected for a cart line item. References a modifier from
+        the product catalog.
+      properties:
+        modifierId:
+          type: string
+          format: uuid
+          description: Modifier ID from catalog
+          example: "e5f6a7b8-c9d0-1234-ef12-345678901234"
+      required:
+        - modifierId
+
+    CartWithItems:
+      type: object
+      description: Cart with line items nested
+      allOf:
+        - $ref: '#/components/schemas/Cart'
+        - type: object
+          properties:
+            lineItems:
+              type: array
+              items:
+                $ref: '#/components/schemas/CartLineItem'
+
+    # ===========================================================================
+    # Order Models
+    # ===========================================================================
+
+    Order:
+      type: object
+      description: |
+        An order created from a cart. Line items are snapshotted at order creation
+        time (not references) to preserve pricing even if menu changes.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique order identifier (UUID v4)
+          example: "f1a2b3c4-d5e6-7890-fab1-234567890123"
+        customerId:
+          type: string
+          format: uuid
+          description: Customer who placed the order
+          example: "c1d2e3f4-a5b6-7890-cdef-123456789012"
+        businessId:
+          type: string
+          format: uuid
+          description: Business this order is for
+          example: "b1c2d3e4-f5a6-7890-bcde-f12345678901"
+        locationId:
+          type: string
+          format: uuid
+          description: Specific location within the business
+          example: "l1m2n3o4-p5q6-7890-lmno-p12345678901"
+        orderType:
+          type: string
+          enum: [order-ahead, asap]
+          description: Type of order (order-ahead with pickup time, or asap for in-store)
+          example: "order-ahead"
+        requestedPickupTime:
+          type: string
+          format: date-time
+          description: Requested pickup time (only for order-ahead orders)
+          example: "2024-11-01T19:30:00Z"
+        status:
+          type: string
+          enum: [pending, confirmed, preparing, ready, completed, cancelled]
+          description: Current order status
+          example: "pending"
+        subtotalMinorUnits:
+          type: integer
+          description: Subtotal in minor currency units (cents for USD)
+          example: 3490
+        taxMinorUnits:
+          type: integer
+          description: Tax in minor currency units
+          example: 314
+        totalMinorUnits:
+          type: integer
+          description: Total in minor currency units (subtotal + tax)
+          example: 3804
+        currencyCode:
+          type: string
+          description: ISO 4217 currency code
+          example: "USD"
+        paymentProvider:
+          type: string
+          description: Payment provider name (stripe, square, stub)
+          example: "stub"
+        paymentIntentId:
+          type: string
+          description: Payment intent or reference ID from provider
+          example: "pi_stub_123456789"
+        paymentStatus:
+          type: string
+          enum: [unpaid, authorized, captured, failed, refunded]
+          description: Payment status
+          example: "captured"
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:36:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last update
+          example: "2024-11-01T18:37:15Z"
+      required:
+        - id
+        - customerId
+        - businessId
+        - locationId
+        - orderType
+        - status
+        - subtotalMinorUnits
+        - taxMinorUnits
+        - totalMinorUnits
+        - currencyCode
+        - paymentProvider
+        - paymentStatus
+        - createdAt
+        - updatedAt
+
+    OrderLineItem:
+      type: object
+      description: |
+        A line item in an order. Contains a snapshot of the item data at order
+        time (name, price, modifiers) rather than references to the catalog.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique order line item identifier (UUID v4)
+          example: "g1h2i3j4-k5l6-7890-ghi1-234567890123"
+        orderId:
+          type: string
+          format: uuid
+          description: Order this line item belongs to
+          example: "f1a2b3c4-d5e6-7890-fab1-234567890123"
+        itemId:
+          type: string
+          format: uuid
+          description: Original product item ID (for reference only)
+          example: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+        itemName:
+          type: string
+          description: Item name at order time
+          example: "Caesar Salad"
+        itemPriceMinorUnits:
+          type: integer
+          description: Item base price at order time (minor units)
+          example: 1295
+        quantity:
+          type: integer
+          description: Quantity ordered
+          example: 2
+          minimum: 1
+        modifiers:
+          type: array
+          description: Snapshotted modifiers with names and prices
+          items:
+            $ref: '#/components/schemas/OrderModifier'
+        lineItemTotalMinorUnits:
+          type: integer
+          description: Total for this line item (base price + modifiers) * quantity
+          example: 2890
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:36:00Z"
+      required:
+        - id
+        - orderId
+        - itemId
+        - itemName
+        - itemPriceMinorUnits
+        - quantity
+        - lineItemTotalMinorUnits
+        - createdAt
+
+    OrderModifier:
+      type: object
+      description: |
+        A modifier snapshot in an order line item. Contains name and price
+        adjustment at order time.
+      properties:
+        modifierId:
+          type: string
+          format: uuid
+          description: Original modifier ID (for reference only)
+          example: "e5f6a7b8-c9d0-1234-ef12-345678901234"
+        modifierName:
+          type: string
+          description: Modifier name at order time
+          example: "Large"
+        priceAdjustmentMinorUnits:
+          type: integer
+          description: Price adjustment at order time (can be negative)
+          example: 200
+      required:
+        - modifierId
+        - modifierName
+        - priceAdjustmentMinorUnits
+
+    OrderWithItems:
+      type: object
+      description: Order with line items nested
+      allOf:
+        - $ref: '#/components/schemas/Order'
+        - type: object
+          properties:
+            lineItems:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrderLineItem'
+
+    # ===========================================================================
+    # Request Models
+    # ===========================================================================
+
+    CreateCartRequest:
+      type: object
+      description: |
+        Request to create a new cart. If a cart already exists for this customer
+        and business, it will be replaced.
+      properties:
+        customerId:
+          type: string
+          format: uuid
+          example: "c1d2e3f4-a5b6-7890-cdef-123456789012"
+        businessId:
+          type: string
+          format: uuid
+          example: "b1c2d3e4-f5a6-7890-bcde-f12345678901"
+      required:
+        - customerId
+        - businessId
+
+    AddLineItemRequest:
+      type: object
+      description: Request to add a line item to a cart
+      properties:
+        itemId:
+          type: string
+          format: uuid
+          description: Product item ID from catalog
+          example: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+        quantity:
+          type: integer
+          description: Quantity to add
+          example: 2
+          minimum: 1
+        modifiers:
+          type: array
+          description: Selected modifiers for this item
+          items:
+            $ref: '#/components/schemas/SelectedModifier'
+      required:
+        - itemId
+        - quantity
+
+    UpdateLineItemRequest:
+      type: object
+      description: Request to update a cart line item's quantity or modifiers
+      properties:
+        quantity:
+          type: integer
+          description: New quantity
+          example: 3
+          minimum: 1
+        modifiers:
+          type: array
+          description: Updated modifiers for this item
+          items:
+            $ref: '#/components/schemas/SelectedModifier'
+      required:
+        - quantity
+
+    CreateOrderRequest:
+      type: object
+      description: Request to create an order from a cart
+      properties:
+        cartId:
+          type: string
+          format: uuid
+          description: Cart to create order from
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        locationId:
+          type: string
+          format: uuid
+          description: Specific location within the business
+          example: "l1m2n3o4-p5q6-7890-lmno-p12345678901"
+        orderType:
+          type: string
+          enum: [order-ahead, asap]
+          description: Type of order
+          example: "order-ahead"
+        requestedPickupTime:
+          type: string
+          format: date-time
+          description: Requested pickup time (required for order-ahead, omit for asap)
+          example: "2024-11-01T19:30:00Z"
+        paymentProvider:
+          type: string
+          description: Payment provider to use (stub for testing)
+          example: "stub"
+        paymentIntentId:
+          type: string
+          description: Payment intent ID from provider (stub generates one if omitted)
+          example: "pi_stub_123456789"
+      required:
+        - cartId
+        - locationId
+        - orderType
+        - paymentProvider
+
+    UpdateOrderStatusRequest:
+      type: object
+      description: Request to update order status (business use)
+      properties:
+        status:
+          type: string
+          enum: [confirmed, preparing, ready, completed, cancelled]
+          description: New status (cannot transition back to pending)
+          example: "confirmed"
+      required:
+        - status
+
+    # ===========================================================================
+    # SSE Event Models
+    # ===========================================================================
+
+    OrderEvent:
+      type: object
+      description: |
+        Server-Sent Event payload for real-time order updates. The event type
+        is sent in the SSE "event:" field, and this object is the "data:" field.
+      properties:
+        eventType:
+          type: string
+          enum: [new_order, order_updated]
+          description: Type of event
+          example: "new_order"
+        order:
+          $ref: '#/components/schemas/OrderWithItems'
+          description: The order that triggered the event
+        timestamp:
+          type: string
+          format: date-time
+          description: When the event occurred
+          example: "2024-11-01T18:36:00Z"
+      required:
+        - eventType
+        - order
+        - timestamp
+
+paths:
+  # =============================================================================
+  # Cart Endpoints (Customer)
+  # =============================================================================
+
+  /customer/{customerId}/business/{businessId}/cart:
+    post:
+      summary: Create or replace a cart
+      description: |
+        Creates a new cart for the customer and business. If a cart already exists,
+        it will be replaced. Returns the new empty cart.
+      tags:
+        - Customer - Cart
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer ID
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      responses:
+        '201':
+          description: Cart created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartWithItems'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: Get the active cart
+      description: |
+        Returns the active cart for the customer and business. Returns 404 if
+        no cart exists.
+      tags:
+        - Customer - Cart
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer ID
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      responses:
+        '200':
+          description: Active cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartWithItems'
+        '404':
+          description: Cart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete the active cart
+      description: |
+        Deletes the active cart for the customer and business. This is used when
+        the customer wants to start over or abandon their cart.
+      tags:
+        - Customer - Cart
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer ID
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      responses:
+        '204':
+          description: Cart deleted
+        '404':
+          description: Cart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cart/{cartId}/clear:
+    put:
+      summary: Clear all line items from a cart
+      description: |
+        Removes all line items from the cart without deleting the cart itself.
+        Useful when the customer wants to start over without creating a new cart.
+      tags:
+        - Customer - Cart
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Cart ID
+      responses:
+        '200':
+          description: Cart cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartWithItems'
+        '404':
+          description: Cart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cart/{cartId}/line-items:
+    post:
+      summary: Add a line item to the cart
+      description: |
+        Adds a new line item to the cart. If an identical line item (same item
+        and modifiers) already exists, the quantities are merged.
+      tags:
+        - Customer - Cart
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Cart ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddLineItemRequest'
+      responses:
+        '201':
+          description: Line item added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartLineItem'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Cart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cart/{cartId}/line-item/{lineItemId}:
+    put:
+      summary: Update a cart line item
+      description: Updates the quantity or modifiers of a line item
+      tags:
+        - Customer - Cart
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Cart ID
+        - name: lineItemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Line item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLineItemRequest'
+      responses:
+        '200':
+          description: Line item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartLineItem'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Line item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Remove a line item from the cart
+      description: Deletes a specific line item from the cart
+      tags:
+        - Customer - Cart
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Cart ID
+        - name: lineItemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Line item ID
+      responses:
+        '204':
+          description: Line item removed
+        '404':
+          description: Line item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Order Endpoints (Customer)
+  # =============================================================================
+
+  /orders:
+    post:
+      summary: Create an order from a cart
+      description: |
+        Creates an order from the cart, snapshots line items, calculates totals,
+        and processes payment. The cart is cleared after the order is created.
+        Returns the created order with line items.
+      tags:
+        - Customer - Orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderWithItems'
+        '400':
+          description: Invalid request or payment failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Cart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /order/{orderId}:
+    get:
+      summary: Get an order by ID
+      description: Returns order details with line items
+      tags:
+        - Customer - Orders
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Order ID
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderWithItems'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /customer/{customerId}/orders:
+    get:
+      summary: List customer orders
+      description: |
+        Returns all orders for a customer. Supports filtering by status and business.
+      tags:
+        - Customer - Orders
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer ID
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, confirmed, preparing, ready, completed, cancelled]
+          description: Filter by order status
+        - name: businessId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by business
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderWithItems'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /order/{orderId}/cancel:
+    put:
+      summary: Cancel an order (customer)
+      description: |
+        Cancels an order. Only allowed when status is pending or confirmed.
+        If payment was captured, a refund will be initiated.
+      tags:
+        - Customer - Orders
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Order ID
+      responses:
+        '200':
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderWithItems'
+        '400':
+          description: Cannot cancel at current status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Order Endpoints (Business/Kiosk)
+  # =============================================================================
+
+  /location/{locationId}/orders:
+    get:
+      summary: List orders for a location
+      description: |
+        Returns all orders for a location. Supports filtering by status.
+        Used by the kiosk to display current orders.
+      tags:
+        - Business - Orders
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Location ID
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, confirmed, preparing, ready, completed, cancelled]
+          description: Filter by order status
+      responses:
+        '200':
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderWithItems'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /order/{orderId}/status:
+    put:
+      summary: Update order status (business)
+      description: |
+        Updates the order status. Used by the business to move orders through
+        the lifecycle (pending → confirmed → preparing → ready → completed).
+        Business can also cancel orders at any status except completed.
+      tags:
+        - Business - Orders
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Order ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusRequest'
+      responses:
+        '200':
+          description: Order status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderWithItems'
+        '400':
+          description: Invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Real-time Updates (Business/Kiosk)
+  # =============================================================================
+
+  /location/{locationId}/orders/events:
+    get:
+      summary: Subscribe to order events (SSE)
+      description: |
+        Server-Sent Events (SSE) endpoint for real-time order updates. The kiosk
+        subscribes to this endpoint to receive notifications when new orders arrive
+        or existing orders are updated.
+
+        **Event Types:**
+        - "new_order": A new order was created for this location
+        - "order_updated": An order status changed
+
+        **Reconnection:**
+        The client should include the Last-Event-ID header on reconnect. The server
+        will replay events from the last 10 minutes. If the Last-Event-ID is older
+        than 10 minutes, the client should refresh the full order list.
+
+        **SSE Format:**
+        ```
+        event: new_order
+        id: 1234567890
+        data: {"eventType":"new_order","order":{...},"timestamp":"2024-11-01T18:36:00Z"}
+
+        event: order_updated
+        id: 1234567891
+        data: {"eventType":"order_updated","order":{...},"timestamp":"2024-11-01T18:37:15Z"}
+        ```
+      tags:
+        - Business - Orders
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Location ID
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-Sent Events stream
+        '404':
+          description: Location not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
