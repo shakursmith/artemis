@@ -1,0 +1,692 @@
+openapi: 3.0.0
+info:
+  title: Artemis Loyalty and Favorites API
+  version: 1.0.0
+  description: |
+    Loyalty program and favorites API for customer retention in shop mode.
+
+    ## Overview
+
+    The loyalty system is a simple points-based program that businesses can optionally
+    enable. Customers automatically join when they place their first order at a business
+    with an active loyalty program. Points are awarded automatically when orders are
+    completed, based on the order total and the program's points multiplier.
+
+    **Points accrual:** Points are awarded as part of the order lifecycle when an order
+    transitions to completed status. The backend implementation (separate ticket) will
+    handle this automatically. This contract defines the data model and read/write
+    endpoints for configuring programs and viewing membership status.
+
+    **Redemption:** This initial version is configuration-only. Redemption flows and
+    reward history are out of scope. The program defines what the reward is (e.g.,
+    "Free coffee") and the threshold to earn it, but customers cannot yet claim or
+    redeem rewards.
+
+    **Favorites:** Customers can bookmark specific menu items for quick reordering.
+    The favorites list includes full item details (name, price, availability) from
+    the product catalog, so the list is immediately useful without additional lookups.
+
+servers:
+  - url: /api
+    description: Default API base path (configurable via API_BASE_PATH env var)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Optional for now, reserved for future use.
+        Once authentication is implemented, this header will be required.
+        Endpoints will return 401 Unauthorized if the token is missing or invalid.
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+      required:
+        - error
+      example:
+        error: "Loyalty program not found"
+
+    # ===========================================================================
+    # Loyalty Models
+    # ===========================================================================
+
+    LoyaltyProgram:
+      type: object
+      description: |
+        A loyalty program belongs to a business and defines the rules for
+        earning points and rewards. A business has at most one loyalty program.
+        If none exists, loyalty is disabled for that business (opt-in).
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique program identifier (UUID v4)
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        businessId:
+          type: string
+          format: uuid
+          description: Business this program belongs to
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        name:
+          type: string
+          description: Program name (e.g., "Cafe Rewards", "VIP Club")
+          example: "Cafe Rewards"
+        pointsMultiplier:
+          type: number
+          format: float
+          description: |
+            Points earned per dollar spent (e.g., 1.0 = 1 point per dollar,
+            2.0 = 2 points per dollar). Fractional values are allowed.
+          example: 1.0
+        rewardThreshold:
+          type: integer
+          description: Points required to earn a reward
+          example: 100
+        rewardDescription:
+          type: string
+          description: Short description of the reward (e.g., "Free coffee")
+          example: "Free coffee"
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:32:45Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last update
+          example: "2024-11-01T18:32:45Z"
+      required:
+        - id
+        - businessId
+        - name
+        - pointsMultiplier
+        - rewardThreshold
+        - rewardDescription
+        - createdAt
+        - updatedAt
+
+    LoyaltyMembership:
+      type: object
+      description: |
+        A loyalty membership belongs to a customer and a business, and tracks
+        the customer's points balance and activity. Memberships are auto-created
+        when a customer places their first order at a business with an active
+        loyalty program.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique membership identifier (UUID v4)
+          example: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+        customerId:
+          type: string
+          format: uuid
+          description: Customer this membership belongs to
+          example: "d4e5f6a7-b8c9-0123-def1-234567890123"
+        businessId:
+          type: string
+          format: uuid
+          description: Business this membership is for
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        pointsBalance:
+          type: integer
+          description: Current points balance
+          example: 75
+        hasEarnedReward:
+          type: boolean
+          description: |
+            Computed field: true if pointsBalance >= program's rewardThreshold.
+            This is a read-only convenience field. No claim or redeem action yet.
+          example: false
+        joinedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the membership was created
+          example: "2024-10-15T12:00:00Z"
+        lastActivityAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last points activity (order completion)
+          example: "2024-11-01T14:22:30Z"
+      required:
+        - id
+        - customerId
+        - businessId
+        - pointsBalance
+        - hasEarnedReward
+        - joinedAt
+        - lastActivityAt
+
+    # ===========================================================================
+    # Favorites Models
+    # ===========================================================================
+
+    FavoriteItem:
+      type: object
+      description: |
+        A favorite item record represents a customer's bookmarked menu item.
+        The response includes full item details from the product catalog
+        (name, price, availability) so the list is immediately useful.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique favorite record identifier (UUID v4)
+          example: "e5f6a7b8-c9d0-1234-ef12-345678901234"
+        customerId:
+          type: string
+          format: uuid
+          description: Customer who favorited this item
+          example: "d4e5f6a7-b8c9-0123-def1-234567890123"
+        itemId:
+          type: string
+          format: uuid
+          description: Menu item ID from the product catalog
+          example: "f6a7b8c9-d0e1-2345-f123-456789012345"
+        businessId:
+          type: string
+          format: uuid
+          description: Business this item belongs to (denormalized for filtering)
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        favoritedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when this item was favorited
+          example: "2024-11-01T16:45:00Z"
+        item:
+          type: object
+          description: |
+            Current item details from the product catalog. This is denormalized
+            for convenience, so the favorites list is immediately useful without
+            additional lookups. The fields match the Item schema from product-catalog.yaml.
+          properties:
+            id:
+              type: string
+              format: uuid
+              description: Item ID (same as itemId above)
+              example: "f6a7b8c9-d0e1-2345-f123-456789012345"
+            categoryId:
+              type: string
+              format: uuid
+              description: Category this item belongs to
+              example: "a2b3c4d5-e6f7-8901-abcd-ef1234567890"
+            name:
+              type: string
+              description: Item name
+              example: "Caesar Salad"
+            description:
+              type: string
+              description: Item description
+              example: "Crisp romaine, parmesan, croutons, house-made dressing"
+            priceMinorUnits:
+              type: integer
+              description: Price in minor currency units (cents for USD)
+              example: 1295
+            currencyCode:
+              type: string
+              description: ISO 4217 currency code
+              example: "USD"
+            imageUrls:
+              type: array
+              description: Array of image URLs for this item
+              items:
+                type: string
+                format: uri
+              example: ["https://cdn.example.com/images/caesar-salad.jpg"]
+            dietaryTags:
+              type: array
+              description: Dietary tags
+              items:
+                type: string
+              example: ["vegetarian"]
+            isAvailable:
+              type: boolean
+              description: Whether this item is currently available
+              example: true
+            isSoldOut:
+              type: boolean
+              description: Whether this item is sold out
+              example: false
+          required:
+            - id
+            - categoryId
+            - name
+            - priceMinorUnits
+            - currencyCode
+            - isAvailable
+            - isSoldOut
+      required:
+        - id
+        - customerId
+        - itemId
+        - businessId
+        - favoritedAt
+        - item
+
+    # ===========================================================================
+    # Request Models
+    # ===========================================================================
+
+    CreateLoyaltyProgramRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Cafe Rewards"
+        pointsMultiplier:
+          type: number
+          format: float
+          example: 1.0
+        rewardThreshold:
+          type: integer
+          example: 100
+        rewardDescription:
+          type: string
+          example: "Free coffee"
+      required:
+        - name
+        - pointsMultiplier
+        - rewardThreshold
+        - rewardDescription
+
+    UpdateLoyaltyProgramRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Premium Rewards"
+        pointsMultiplier:
+          type: number
+          format: float
+          example: 1.5
+        rewardThreshold:
+          type: integer
+          example: 150
+        rewardDescription:
+          type: string
+          example: "Free pastry"
+      required:
+        - name
+        - pointsMultiplier
+        - rewardThreshold
+        - rewardDescription
+
+    AddFavoriteRequest:
+      type: object
+      description: |
+        Request to add an item to favorites. Idempotent: re-adding the same
+        item updates the favoritedAt timestamp.
+      properties:
+        itemId:
+          type: string
+          format: uuid
+          description: Menu item ID from the product catalog
+          example: "f6a7b8c9-d0e1-2345-f123-456789012345"
+      required:
+        - itemId
+
+paths:
+  # =============================================================================
+  # Loyalty Program Endpoints (Business Admin)
+  # =============================================================================
+
+  /business/{businessId}/loyalty-program:
+    post:
+      summary: Create a loyalty program for a business
+      description: |
+        Creates a new loyalty program. A business can have at most one program.
+        If a program already exists, this endpoint returns 400.
+      tags:
+        - Business Admin
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoyaltyProgramRequest'
+      responses:
+        '201':
+          description: Loyalty program created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoyaltyProgram'
+        '400':
+          description: Invalid request or program already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: Get the loyalty program for a business
+      description: |
+        Returns the loyalty program for the business. If no program exists,
+        returns 404 (loyalty is opt-in).
+      tags:
+        - Business Admin
+        - Customer
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      responses:
+        '200':
+          description: Loyalty program details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoyaltyProgram'
+        '404':
+          description: No loyalty program for this business
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update the loyalty program for a business
+      description: Updates the loyalty program configuration
+      tags:
+        - Business Admin
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLoyaltyProgramRequest'
+      responses:
+        '200':
+          description: Loyalty program updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoyaltyProgram'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No loyalty program for this business
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Loyalty Membership Endpoints (Customer)
+  # =============================================================================
+
+  /customer/{customerId}/loyalty-membership/{businessId}:
+    get:
+      summary: Get customer's loyalty membership for a business
+      description: |
+        Returns the customer's loyalty membership for the specified business.
+        Memberships are auto-created on the customer's first order if the
+        business has an active loyalty program. If no membership exists,
+        returns 404.
+      tags:
+        - Customer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer ID
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      responses:
+        '200':
+          description: Loyalty membership details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoyaltyMembership'
+        '404':
+          description: No membership for this customer at this business
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /customer/{customerId}/loyalty-memberships:
+    get:
+      summary: List all loyalty memberships for a customer
+      description: |
+        Returns all loyalty memberships for the customer across all businesses.
+        Empty list if the customer has no memberships.
+      tags:
+        - Customer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer ID
+      responses:
+        '200':
+          description: List of loyalty memberships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LoyaltyMembership'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Favorites Endpoints (Customer)
+  # =============================================================================
+
+  /customer/{customerId}/favorites:
+    get:
+      summary: List customer's favorite items
+      description: |
+        Returns all favorited items for the customer, with full item details
+        from the product catalog. Supports optional filtering by business.
+      tags:
+        - Customer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer ID
+        - name: businessId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Optional business ID to filter favorites by business
+      responses:
+        '200':
+          description: List of favorite items with full details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FavoriteItem'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Add an item to favorites
+      description: |
+        Adds a menu item to the customer's favorites. Idempotent: if the item
+        is already favorited, this updates the favoritedAt timestamp.
+      tags:
+        - Customer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddFavoriteRequest'
+      responses:
+        '201':
+          description: Item added to favorites
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteItem'
+        '400':
+          description: Invalid request (item does not exist)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /customer/{customerId}/favorites/{itemId}:
+    delete:
+      summary: Remove an item from favorites
+      description: |
+        Removes a menu item from the customer's favorites. If the item is not
+        favorited, this endpoint is idempotent and returns 204.
+      tags:
+        - Customer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer ID
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Menu item ID
+      responses:
+        '204':
+          description: Item removed from favorites
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+# =============================================================================
+# Migration Notes
+# =============================================================================
+
+# New database tables:
+#
+# - loyalty_programs: stores loyalty program configuration per business
+#   - id (uuid, primary key)
+#   - business_id (uuid, unique, foreign key to businesses)
+#   - name (text)
+#   - points_multiplier (decimal)
+#   - reward_threshold (integer)
+#   - reward_description (text)
+#   - created_at (timestamp)
+#   - updated_at (timestamp)
+#
+# - loyalty_memberships: stores customer memberships per business
+#   - id (uuid, primary key)
+#   - customer_id (uuid, foreign key to customers)
+#   - business_id (uuid, foreign key to businesses)
+#   - points_balance (integer, default 0)
+#   - joined_at (timestamp)
+#   - last_activity_at (timestamp)
+#   - unique constraint on (customer_id, business_id)
+#
+# - favorites (or favorite_items): stores customer favorite items
+#   - id (uuid, primary key)
+#   - customer_id (uuid, foreign key to customers)
+#   - item_id (uuid, foreign key to items in product catalog)
+#   - business_id (uuid, foreign key to businesses, denormalized for filtering)
+#   - favorited_at (timestamp)
+#   - unique constraint on (customer_id, item_id)

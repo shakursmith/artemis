@@ -1,0 +1,10 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "businessId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "name": "Cafe Rewards",
+  "pointsMultiplier": 1.0,
+  "rewardThreshold": 100,
+  "rewardDescription": "Free coffee",
+  "createdAt": "2024-11-01T18:32:45Z",
+  "updatedAt": "2024-11-01T18:32:45Z"
+}

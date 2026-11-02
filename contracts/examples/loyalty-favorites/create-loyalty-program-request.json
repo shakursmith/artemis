@@ -1,0 +1,6 @@
+{
+  "name": "Cafe Rewards",
+  "pointsMultiplier": 1.0,
+  "rewardThreshold": 100,
+  "rewardDescription": "Free coffee"
+}

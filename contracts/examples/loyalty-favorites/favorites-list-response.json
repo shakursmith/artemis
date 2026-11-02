@@ -1,0 +1,71 @@
+[
+  {
+    "id": "e5f6a7b8-c9d0-1234-ef12-345678901234",
+    "customerId": "d4e5f6a7-b8c9-0123-def1-234567890123",
+    "itemId": "f6a7b8c9-d0e1-2345-f123-456789012345",
+    "businessId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "favoritedAt": "2024-11-01T16:45:00Z",
+    "item": {
+      "id": "f6a7b8c9-d0e1-2345-f123-456789012345",
+      "categoryId": "a2b3c4d5-e6f7-8901-abcd-ef1234567890",
+      "name": "Caesar Salad",
+      "description": "Crisp romaine, parmesan, croutons, house-made dressing",
+      "priceMinorUnits": 1295,
+      "currencyCode": "USD",
+      "imageUrls": [
+        "https://cdn.example.com/images/caesar-salad.jpg"
+      ],
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "isAvailable": true,
+      "isSoldOut": false
+    }
+  },
+  {
+    "id": "f7a8b9c0-d1e2-3456-a234-567890123456",
+    "customerId": "d4e5f6a7-b8c9-0123-def1-234567890123",
+    "itemId": "a8b9c0d1-e2f3-4567-b345-678901234567",
+    "businessId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "favoritedAt": "2024-10-28T10:15:30Z",
+    "item": {
+      "id": "a8b9c0d1-e2f3-4567-b345-678901234567",
+      "categoryId": "b3c4d5e6-f7a8-9012-bcde-f12345678901",
+      "name": "Espresso",
+      "description": "Double shot of rich, aromatic espresso",
+      "priceMinorUnits": 350,
+      "currencyCode": "USD",
+      "imageUrls": [
+        "https://cdn.example.com/images/espresso.jpg"
+      ],
+      "dietaryTags": [
+        "vegan"
+      ],
+      "isAvailable": true,
+      "isSoldOut": false
+    }
+  },
+  {
+    "id": "b9c0d1e2-f3a4-5678-c456-789012345678",
+    "customerId": "d4e5f6a7-b8c9-0123-def1-234567890123",
+    "itemId": "c0d1e2f3-a4b5-6789-d567-890123456789",
+    "businessId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "favoritedAt": "2024-10-20T14:30:00Z",
+    "item": {
+      "id": "c0d1e2f3-a4b5-6789-d567-890123456789",
+      "categoryId": "d4e5f6a7-b8c9-0123-def1-234567890123",
+      "name": "Margherita Pizza",
+      "description": "Fresh mozzarella, basil, tomato sauce on wood-fired crust",
+      "priceMinorUnits": 1495,
+      "currencyCode": "USD",
+      "imageUrls": [
+        "https://cdn.example.com/images/margherita-pizza.jpg"
+      ],
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "isAvailable": true,
+      "isSoldOut": false
+    }
+  }
+]

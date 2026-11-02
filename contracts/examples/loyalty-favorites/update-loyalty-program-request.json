@@ -1,0 +1,6 @@
+{
+  "name": "Premium Rewards",
+  "pointsMultiplier": 1.5,
+  "rewardThreshold": 150,
+  "rewardDescription": "Free pastry"
+}
