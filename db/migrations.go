@@ -385,6 +385,122 @@ var migrations = []string{
 		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
 		UNIQUE (customer_id, item_id)
 	);`,
+
+	// =============================================================================
+	// Cart and Order Tables
+	// =============================================================================
+
+	// carts table — shopping carts for customers at businesses
+	// A customer can have only one active cart per business at a time.
+	// UNIQUE constraint on (customer_id, business_id) enforces this rule.
+	`CREATE TABLE IF NOT EXISTS carts (
+		id TEXT PRIMARY KEY,
+		customer_id TEXT NOT NULL,
+		business_id TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+		UNIQUE (customer_id, business_id)
+	);`,
+
+	// cart_line_items table — line items in a cart
+	// Each line item references a product catalog item and includes quantity.
+	// Cascading delete: deleting a cart deletes all its line items.
+	`CREATE TABLE IF NOT EXISTS cart_line_items (
+		id TEXT PRIMARY KEY,
+		cart_id TEXT NOT NULL,
+		item_id TEXT NOT NULL,
+		quantity INTEGER NOT NULL CHECK (quantity > 0),
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (cart_id) REFERENCES carts(id) ON DELETE CASCADE,
+		FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+	);`,
+
+	// cart_line_item_modifiers table — junction table for selected modifiers
+	// Tracks which modifiers are selected for each cart line item.
+	// Cascading delete: deleting a cart line item deletes all its modifier selections.
+	`CREATE TABLE IF NOT EXISTS cart_line_item_modifiers (
+		id TEXT PRIMARY KEY,
+		cart_line_item_id TEXT NOT NULL,
+		modifier_id TEXT NOT NULL,
+		FOREIGN KEY (cart_line_item_id) REFERENCES cart_line_items(id) ON DELETE CASCADE,
+		FOREIGN KEY (modifier_id) REFERENCES modifiers(id) ON DELETE CASCADE
+	);`,
+
+	// orders table — orders created from carts
+	// Orders snapshot the cart's line items at order time to preserve pricing.
+	// order_type: "order-ahead" (scheduled pickup) or "asap" (immediate fulfillment)
+	// requested_pickup_time: only for order-ahead orders (nullable)
+	// status: pending → confirmed → preparing → ready → completed (or cancelled at any step)
+	// payment_provider: "stripe", "square", "stub" (for testing)
+	// payment_status: unpaid, authorized, captured, failed, refunded
+	`CREATE TABLE IF NOT EXISTS orders (
+		id TEXT PRIMARY KEY,
+		customer_id TEXT NOT NULL,
+		business_id TEXT NOT NULL,
+		location_id TEXT NOT NULL,
+		order_type TEXT NOT NULL CHECK (order_type IN ('order-ahead', 'asap')),
+		requested_pickup_time DATETIME,
+		status TEXT NOT NULL CHECK (status IN ('pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled')),
+		subtotal_minor_units INTEGER NOT NULL,
+		tax_minor_units INTEGER NOT NULL,
+		total_minor_units INTEGER NOT NULL,
+		currency_code TEXT NOT NULL DEFAULT 'USD',
+		payment_provider TEXT NOT NULL,
+		payment_intent_id TEXT NOT NULL,
+		payment_status TEXT NOT NULL CHECK (payment_status IN ('unpaid', 'authorized', 'captured', 'failed', 'refunded')),
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+		FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE
+	);`,
+
+	// order_line_items table — line items in an order (snapshotted from cart)
+	// Snapshots item name and price at order time so changes to the menu don't affect existing orders.
+	// line_item_total_minor_units = (item_price_minor_units + sum of modifier adjustments) * quantity
+	`CREATE TABLE IF NOT EXISTS order_line_items (
+		id TEXT PRIMARY KEY,
+		order_id TEXT NOT NULL,
+		item_id TEXT NOT NULL,
+		item_name TEXT NOT NULL,
+		item_price_minor_units INTEGER NOT NULL,
+		quantity INTEGER NOT NULL CHECK (quantity > 0),
+		line_item_total_minor_units INTEGER NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+		FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+	);`,
+
+	// order_line_item_modifiers table — snapshots of modifiers selected for order line items
+	// Snapshots modifier name and price adjustment at order time to preserve historical data.
+	`CREATE TABLE IF NOT EXISTS order_line_item_modifiers (
+		id TEXT PRIMARY KEY,
+		order_line_item_id TEXT NOT NULL,
+		modifier_id TEXT NOT NULL,
+		modifier_name TEXT NOT NULL,
+		price_adjustment_minor_units INTEGER NOT NULL,
+		FOREIGN KEY (order_line_item_id) REFERENCES order_line_items(id) ON DELETE CASCADE,
+		FOREIGN KEY (modifier_id) REFERENCES modifiers(id) ON DELETE CASCADE
+	);`,
+
+	// order_events table — for SSE event replay (last 10 minutes)
+	// Stores recent order events so kiosks can catch up after reconnecting.
+	// event_type: "new_order" (order created) or "order_updated" (status changed)
+	// event_data: JSON serialized order payload
+	// TTL: events older than 10 minutes can be cleaned up (future enhancement)
+	`CREATE TABLE IF NOT EXISTS order_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		location_id TEXT NOT NULL,
+		event_type TEXT NOT NULL CHECK (event_type IN ('new_order', 'order_updated')),
+		order_id TEXT NOT NULL,
+		event_data TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE,
+		FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+	);`,
 }
 
 // RunMigrations executes all schema migrations against the given database connection.
@@ -404,6 +520,13 @@ func RunMigrations(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_reviews_customer_id ON reviews(customer_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON reviews(created_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating)`,
+
+		// Indexes for orders table to optimize kiosk and customer queries
+		`CREATE INDEX IF NOT EXISTS idx_orders_location_id_status ON orders(location_id, status)`,
+		`CREATE INDEX IF NOT EXISTS idx_orders_customer_id_created_at ON orders(customer_id, created_at DESC)`,
+
+		// Index for order_events table to optimize SSE event replay
+		`CREATE INDEX IF NOT EXISTS idx_order_events_location_id_created_at ON order_events(location_id, created_at DESC)`,
 	}
 	for _, idx := range indexMigrations {
 		if _, err := db.Exec(idx); err != nil {

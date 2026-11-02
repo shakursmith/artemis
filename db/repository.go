@@ -1492,3 +1492,87 @@ func FindRoomByBeacon(db *sql.DB, beaconUUID string, beaconMajor, beaconMinor in
 
 	return roomID, businessID, locationID, nil
 }
+
+// =============================================================================
+// Product Catalog Operations (helper functions for tests)
+// =============================================================================
+
+// CreateProductMenu creates a new product menu for a business.
+func CreateProductMenu(db *sql.DB, businessID, name string, description *string, isActive bool, displayOrder int) (*ProductMenu, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err := db.Exec(
+		"INSERT INTO product_menus (id, business_id, name, description, is_active, display_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		id, businessID, name, description, isActive, displayOrder, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create product menu: %w", err)
+	}
+
+	return &ProductMenu{
+		ID:           id,
+		BusinessID:   businessID,
+		Name:         name,
+		Description:  description,
+		IsActive:     isActive,
+		DisplayOrder: displayOrder,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}, nil
+}
+
+// CreateCategory creates a new category for a product menu.
+func CreateCategory(db *sql.DB, menuID, name string, description *string, isAvailable bool, displayOrder int) (*Category, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err := db.Exec(
+		"INSERT INTO categories (id, menu_id, name, description, is_available, display_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		id, menuID, name, description, isAvailable, displayOrder, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create category: %w", err)
+	}
+
+	return &Category{
+		ID:           id,
+		MenuID:       menuID,
+		Name:         name,
+		Description:  description,
+		IsAvailable:  isAvailable,
+		DisplayOrder: displayOrder,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}, nil
+}
+
+// CreateItem creates a new item for a category.
+func CreateItem(db *sql.DB, categoryID, name string, description *string, priceMinorUnits int, currencyCode string, imageURLs, dietaryTags *string, isAvailable, isSoldOut bool, displayOrder int) (*Item, error) {
+	id := generateUUID()
+	now := time.Now().UTC()
+
+	_, err := db.Exec(
+		"INSERT INTO items (id, category_id, name, description, price_minor_units, currency_code, image_urls, dietary_tags, is_available, is_sold_out, display_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		id, categoryID, name, description, priceMinorUnits, currencyCode, imageURLs, dietaryTags, isAvailable, isSoldOut, displayOrder, now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create item: %w", err)
+	}
+
+	return &Item{
+		ID:              id,
+		CategoryID:      categoryID,
+		Name:            name,
+		Description:     description,
+		PriceMinorUnits: priceMinorUnits,
+		CurrencyCode:    currencyCode,
+		ImageURLs:       imageURLs,
+		DietaryTags:     dietaryTags,
+		IsAvailable:     isAvailable,
+		IsSoldOut:       isSoldOut,
+		DisplayOrder:    displayOrder,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}, nil
+}
