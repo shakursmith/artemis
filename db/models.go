@@ -215,3 +215,95 @@ type SpecialHours struct {
 	Reason string    `json:"reason"` // reason for special hours (e.g., "Christmas Day")
 	Hours  *DayHours `json:"hours"`  // hours for this day (null means closed all day)
 }
+
+// =============================================================================
+// Product Catalog Models (Food/Drink Menu System)
+// =============================================================================
+//
+// The product catalog is the food and drink menu system for shop mode.
+// This is COMPLETELY SEPARATE from the shop menu system (MenuOption, Menu, etc.)
+//
+// Shop menu = environment-based actions (WiFi, URLs, room controls)
+// Product catalog = browsing and ordering food/drink items
+//
+// Hierarchy:
+// - Business → ProductMenu (e.g., "Breakfast", "Lunch", "Dinner")
+// - ProductMenu → Category (e.g., "Appetizers", "Entrees", "Desserts")
+// - Category → Item (e.g., "Caesar Salad", "Grilled Salmon")
+// - Item → ModifierGroup (e.g., "Size", "Add-ons")
+// - ModifierGroup → Modifier (e.g., "Small", "Medium", "Large")
+
+// ProductMenu represents a collection of categories and items that a business offers.
+// A business can have multiple menus (e.g., breakfast, lunch, dinner) activated at
+// different times or locations. This is separate from the Menu table (shop menu system).
+type ProductMenu struct {
+	ID           string    `json:"id"`
+	BusinessID   string    `json:"businessId"`
+	Name         string    `json:"name"`
+	Description  *string   `json:"description,omitempty"`
+	IsActive     bool      `json:"isActive"`
+	DisplayOrder int       `json:"displayOrder"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+// Category represents a grouping of related items within a product menu
+// (e.g., "Appetizers", "Entrees", "Desserts"). Categories are displayed in order.
+type Category struct {
+	ID           string    `json:"id"`
+	MenuID       string    `json:"menuId"`
+	Name         string    `json:"name"`
+	Description  *string   `json:"description,omitempty"`
+	IsAvailable  bool      `json:"isAvailable"`
+	DisplayOrder int       `json:"displayOrder"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+// Item represents a specific product (food or drink) that customers can order.
+// Items belong to a category and can have modifier groups for customization.
+// Prices are stored in minor currency units (cents for USD) to avoid floating point issues.
+type Item struct {
+	ID               string    `json:"id"`
+	CategoryID       string    `json:"categoryId"`
+	Name             string    `json:"name"`
+	Description      *string   `json:"description,omitempty"`
+	PriceMinorUnits  int       `json:"priceMinorUnits"`  // cents for USD
+	CurrencyCode     string    `json:"currencyCode"`     // ISO 4217 currency code
+	ImageURLs        *string   `json:"imageUrls,omitempty"` // JSON array of image URLs
+	DietaryTags      *string   `json:"dietaryTags,omitempty"` // JSON array of dietary tags
+	IsAvailable      bool      `json:"isAvailable"`
+	IsSoldOut        bool      `json:"isSoldOut"`
+	DisplayOrder     int       `json:"displayOrder"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+}
+
+// ModifierGroup represents a set of options for customizing an item
+// (e.g., "Size", "Add-ons", "Preparation"). Each group has min/max selection rules.
+type ModifierGroup struct {
+	ID            string    `json:"id"`
+	ItemID        string    `json:"itemId"`
+	Name          string    `json:"name"`
+	MinSelections int       `json:"minSelections"`
+	MaxSelections int       `json:"maxSelections"`
+	IsAvailable   bool      `json:"isAvailable"`
+	DisplayOrder  int       `json:"displayOrder"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+}
+
+// Modifier represents a specific option within a modifier group
+// (e.g., "Small", "Medium", "Large" for a Size group). Modifiers can have
+// price adjustments (positive or negative).
+type Modifier struct {
+	ID                        string    `json:"id"`
+	ModifierGroupID           string    `json:"modifierGroupId"`
+	Name                      string    `json:"name"`
+	PriceAdjustmentMinorUnits int       `json:"priceAdjustmentMinorUnits"` // can be negative
+	IsAvailable               bool      `json:"isAvailable"`
+	IsDefault                 bool      `json:"isDefault"`
+	DisplayOrder              int       `json:"displayOrder"`
+	CreatedAt                 time.Time `json:"createdAt"`
+	UpdatedAt                 time.Time `json:"updatedAt"`
+}

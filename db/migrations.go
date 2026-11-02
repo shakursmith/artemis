@@ -164,6 +164,102 @@ var migrations = []string{
 		UNIQUE (menu_id, menu_option_id),
 		UNIQUE (menu_id, position)
 	);`,
+
+	// =============================================================================
+	// Product Catalog Tables (Food/Drink Menu System)
+	// =============================================================================
+	//
+	// The product catalog is the food and drink menu system for shop mode.
+	// This is COMPLETELY SEPARATE from the shop menu system (menu_options, menus, etc.)
+	//
+	// Shop menu = environment-based actions (WiFi, URLs, room controls)
+	// Product catalog = browsing and ordering food/drink items
+	//
+	// CRITICAL: These two systems must NEVER share table names, model names, or route paths.
+	// Product catalog uses: product_menus, categories, items, modifier_groups, modifiers
+	// Shop menu uses: menu_options, menus, menu_option_assignments
+
+	// product_menus table — food/drink menu collections (e.g., "Breakfast", "Lunch")
+	// A business can have multiple product menus activated at different times/locations.
+	// This is separate from the menus table (which is for shop menu system).
+	`CREATE TABLE IF NOT EXISTS product_menus (
+		id TEXT PRIMARY KEY,
+		business_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		description TEXT,
+		is_active BOOLEAN DEFAULT 1,
+		display_order INTEGER NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
+	);`,
+
+	// categories table — groups of related items within a product menu
+	// (e.g., "Appetizers", "Entrees", "Desserts")
+	`CREATE TABLE IF NOT EXISTS categories (
+		id TEXT PRIMARY KEY,
+		menu_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		description TEXT,
+		is_available BOOLEAN DEFAULT 1,
+		display_order INTEGER NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (menu_id) REFERENCES product_menus(id) ON DELETE CASCADE
+	);`,
+
+	// items table — specific products (food/drink) that customers can order
+	// Prices are stored in minor currency units (cents for USD) to avoid floating point issues
+	// image_urls and dietary_tags are JSON arrays stored as TEXT
+	`CREATE TABLE IF NOT EXISTS items (
+		id TEXT PRIMARY KEY,
+		category_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		description TEXT,
+		price_minor_units INTEGER NOT NULL,
+		currency_code TEXT NOT NULL DEFAULT 'USD',
+		image_urls TEXT,
+		dietary_tags TEXT,
+		is_available BOOLEAN DEFAULT 1,
+		is_sold_out BOOLEAN DEFAULT 0,
+		display_order INTEGER NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+	);`,
+
+	// modifier_groups table — sets of options for customizing items
+	// (e.g., "Size", "Add-ons", "Preparation")
+	// min_selections and max_selections define the validation rules for customer selections
+	`CREATE TABLE IF NOT EXISTS modifier_groups (
+		id TEXT PRIMARY KEY,
+		item_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		min_selections INTEGER NOT NULL,
+		max_selections INTEGER NOT NULL,
+		is_available BOOLEAN DEFAULT 1,
+		display_order INTEGER NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+	);`,
+
+	// modifiers table — specific options within a modifier group
+	// (e.g., "Small", "Medium", "Large" for a Size group)
+	// price_adjustment_minor_units can be negative (e.g., discounts)
+	// is_default marks which modifier is selected by default in the UI
+	`CREATE TABLE IF NOT EXISTS modifiers (
+		id TEXT PRIMARY KEY,
+		modifier_group_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		price_adjustment_minor_units INTEGER NOT NULL,
+		is_available BOOLEAN DEFAULT 1,
+		is_default BOOLEAN DEFAULT 0,
+		display_order INTEGER NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (modifier_group_id) REFERENCES modifier_groups(id) ON DELETE CASCADE
+	);`,
 }
 
 // RunMigrations executes all schema migrations against the given database connection.
