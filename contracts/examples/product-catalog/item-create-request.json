@@ -1,0 +1,17 @@
+{
+  "name": "Grilled Salmon",
+  "description": "Fresh Atlantic salmon with lemon herb butter, served with seasonal vegetables",
+  "priceMinorUnits": 2495,
+  "currencyCode": "USD",
+  "imageUrls": [
+    "https://cdn.example.com/images/grilled-salmon-001.jpg",
+    "https://cdn.example.com/images/grilled-salmon-002.jpg"
+  ],
+  "dietaryTags": [
+    "gluten-free",
+    "dairy-free"
+  ],
+  "isAvailable": true,
+  "isSoldOut": false,
+  "displayOrder": 3
+}

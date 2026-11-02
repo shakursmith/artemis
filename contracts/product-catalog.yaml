@@ -1,0 +1,2218 @@
+openapi: 3.0.0
+info:
+  title: Artemis Product Catalog API
+  version: 1.0.0
+  description: |
+    Product catalog API for food and drink menu management in shop mode.
+
+    ## Product Catalog vs. Shop Menu
+
+    The **product catalog** is for browsing and ordering food and drink items.
+    The **shop menu** (MenuOption, MenuOptionTemplate, Menu, MenuOptionAssignment)
+    is for room-based action menus like WiFi credentials and URL links.
+
+    - Product catalog: customers browse, add to cart, favorites, reviews
+    - Shop menu: environment-based actions (connect WiFi, open URL, etc.)
+
+    **CRITICAL:** These two systems must never share table names, model names, or
+    route paths. Product catalog uses "menu" (ProductMenu), "category", "item".
+    Shop menu uses "menu_option", "menu_option_template", "menu", etc.
+
+servers:
+  - url: /api
+    description: Default API base path (configurable via API_BASE_PATH env var)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Optional for now, reserved for future use.
+        Once authentication is implemented, this header will be required.
+        Endpoints will return 401 Unauthorized if the token is missing or invalid.
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+      required:
+        - error
+      example:
+        error: "Menu not found"
+
+    # ===========================================================================
+    # Core Models
+    # ===========================================================================
+
+    ProductMenu:
+      type: object
+      description: |
+        A product menu represents a collection of categories and items that a
+        business offers. A business can have multiple menus (e.g., breakfast,
+        lunch, dinner, drinks) that are activated at different times or locations.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique menu identifier (UUID v4)
+          example: "f3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        businessId:
+          type: string
+          format: uuid
+          description: Business this menu belongs to
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        name:
+          type: string
+          description: Menu name (e.g., "Breakfast", "Lunch", "Happy Hour")
+          example: "Breakfast Menu"
+        description:
+          type: string
+          description: Optional menu description
+          example: "Served daily from 7am to 11am"
+        isActive:
+          type: boolean
+          description: Whether this menu is currently available to customers
+          example: true
+        displayOrder:
+          type: integer
+          description: Display order for sorting menus (0-indexed)
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:32:45Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last update
+          example: "2024-11-01T18:32:45Z"
+      required:
+        - id
+        - businessId
+        - name
+        - isActive
+        - displayOrder
+        - createdAt
+        - updatedAt
+
+    Category:
+      type: object
+      description: |
+        A category groups related items within a menu (e.g., "Appetizers",
+        "Entrees", "Desserts"). Categories are displayed in order.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique category identifier (UUID v4)
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        menuId:
+          type: string
+          format: uuid
+          description: Menu this category belongs to
+          example: "f3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        name:
+          type: string
+          description: Category name
+          example: "Appetizers"
+        description:
+          type: string
+          description: Optional category description
+          example: "Start your meal right"
+        isAvailable:
+          type: boolean
+          description: Whether this category is currently available
+          example: true
+        displayOrder:
+          type: integer
+          description: Display order within the menu (0-indexed)
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:32:45Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last update
+          example: "2024-11-01T18:32:45Z"
+      required:
+        - id
+        - menuId
+        - name
+        - isAvailable
+        - displayOrder
+        - createdAt
+        - updatedAt
+
+    Item:
+      type: object
+      description: |
+        A menu item represents a specific product (food or drink) that customers
+        can order. Items belong to a category and can have modifiers.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique item identifier (UUID v4)
+          example: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+        categoryId:
+          type: string
+          format: uuid
+          description: Category this item belongs to
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        name:
+          type: string
+          description: Item name
+          example: "Caesar Salad"
+        description:
+          type: string
+          description: Optional item description
+          example: "Crisp romaine, parmesan, croutons, house-made dressing"
+        priceMinorUnits:
+          type: integer
+          description: Price in minor currency units (cents for USD)
+          example: 1295
+        currencyCode:
+          type: string
+          description: ISO 4217 currency code
+          example: "USD"
+        imageUrls:
+          type: array
+          description: Array of image URLs for this item
+          items:
+            type: string
+            format: uri
+          example: ["https://cdn.example.com/images/caesar-salad.jpg"]
+        dietaryTags:
+          type: array
+          description: Dietary tags (vegetarian, vegan, gluten-free, etc.)
+          items:
+            type: string
+          example: ["vegetarian"]
+        isAvailable:
+          type: boolean
+          description: Whether this item is currently available
+          example: true
+        isSoldOut:
+          type: boolean
+          description: Quick toggle for sold-out status (kiosk can flip this)
+          example: false
+        displayOrder:
+          type: integer
+          description: Display order within the category (0-indexed)
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:32:45Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last update
+          example: "2024-11-01T18:32:45Z"
+      required:
+        - id
+        - categoryId
+        - name
+        - priceMinorUnits
+        - currencyCode
+        - isAvailable
+        - isSoldOut
+        - displayOrder
+        - createdAt
+        - updatedAt
+
+    ModifierGroup:
+      type: object
+      description: |
+        A modifier group represents a set of options for customizing an item
+        (e.g., "Size", "Add-ons", "Preparation"). Each group has min/max
+        selection rules.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique modifier group identifier (UUID v4)
+          example: "d4e5f6a7-b8c9-0123-def1-234567890123"
+        itemId:
+          type: string
+          format: uuid
+          description: Item this modifier group belongs to
+          example: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+        name:
+          type: string
+          description: Modifier group name
+          example: "Size"
+        minSelections:
+          type: integer
+          description: Minimum number of modifiers that must be selected
+          example: 1
+        maxSelections:
+          type: integer
+          description: Maximum number of modifiers that can be selected
+          example: 1
+        isAvailable:
+          type: boolean
+          description: Whether this modifier group is currently available
+          example: true
+        displayOrder:
+          type: integer
+          description: Display order within the item (0-indexed)
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:32:45Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last update
+          example: "2024-11-01T18:32:45Z"
+      required:
+        - id
+        - itemId
+        - name
+        - minSelections
+        - maxSelections
+        - isAvailable
+        - displayOrder
+        - createdAt
+        - updatedAt
+
+    Modifier:
+      type: object
+      description: |
+        A modifier is a specific option within a modifier group (e.g., "Small",
+        "Medium", "Large" for a Size group). Modifiers can have price adjustments.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique modifier identifier (UUID v4)
+          example: "e5f6a7b8-c9d0-1234-ef12-345678901234"
+        modifierGroupId:
+          type: string
+          format: uuid
+          description: Modifier group this modifier belongs to
+          example: "d4e5f6a7-b8c9-0123-def1-234567890123"
+        name:
+          type: string
+          description: Modifier name
+          example: "Large"
+        priceAdjustmentMinorUnits:
+          type: integer
+          description: Price adjustment in minor currency units (can be negative)
+          example: 200
+        isAvailable:
+          type: boolean
+          description: Whether this modifier is currently available
+          example: true
+        isDefault:
+          type: boolean
+          description: Whether this modifier is selected by default
+          example: false
+        displayOrder:
+          type: integer
+          description: Display order within the modifier group (0-indexed)
+          example: 2
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:32:45Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last update
+          example: "2024-11-01T18:32:45Z"
+      required:
+        - id
+        - modifierGroupId
+        - name
+        - priceAdjustmentMinorUnits
+        - isAvailable
+        - isDefault
+        - displayOrder
+        - createdAt
+        - updatedAt
+
+    # ===========================================================================
+    # Response Models for Nested Data
+    # ===========================================================================
+
+    ModifierWithGroup:
+      type: object
+      description: Modifier with its parent group info (for nested responses)
+      allOf:
+        - $ref: '#/components/schemas/Modifier'
+
+    ModifierGroupWithModifiers:
+      type: object
+      description: Modifier group with its modifiers nested
+      allOf:
+        - $ref: '#/components/schemas/ModifierGroup'
+        - type: object
+          properties:
+            modifiers:
+              type: array
+              items:
+                $ref: '#/components/schemas/Modifier'
+
+    ItemWithModifiers:
+      type: object
+      description: Item with its modifier groups and modifiers nested
+      allOf:
+        - $ref: '#/components/schemas/Item'
+        - type: object
+          properties:
+            modifierGroups:
+              type: array
+              items:
+                $ref: '#/components/schemas/ModifierGroupWithModifiers'
+
+    CategoryWithItems:
+      type: object
+      description: Category with its items and modifiers nested
+      allOf:
+        - $ref: '#/components/schemas/Category'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ItemWithModifiers'
+
+    FullMenuResponse:
+      type: object
+      description: Complete menu with all nested categories, items, and modifiers
+      allOf:
+        - $ref: '#/components/schemas/ProductMenu'
+        - type: object
+          properties:
+            categories:
+              type: array
+              items:
+                $ref: '#/components/schemas/CategoryWithItems'
+
+    # ===========================================================================
+    # Request Models
+    # ===========================================================================
+
+    CreateMenuRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Lunch Menu"
+        description:
+          type: string
+          example: "Served daily from 11am to 3pm"
+        isActive:
+          type: boolean
+          example: true
+        displayOrder:
+          type: integer
+          example: 1
+      required:
+        - name
+        - isActive
+        - displayOrder
+
+    UpdateMenuRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Updated Lunch Menu"
+        description:
+          type: string
+          example: "Served daily from 11:30am to 3pm"
+        isActive:
+          type: boolean
+          example: false
+        displayOrder:
+          type: integer
+          example: 2
+      required:
+        - name
+        - isActive
+        - displayOrder
+
+    CreateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Entrees"
+        description:
+          type: string
+          example: "Main courses"
+        isAvailable:
+          type: boolean
+          example: true
+        displayOrder:
+          type: integer
+          example: 1
+      required:
+        - name
+        - isAvailable
+        - displayOrder
+
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Main Courses"
+        description:
+          type: string
+          example: "Hearty entrees"
+        isAvailable:
+          type: boolean
+          example: true
+        displayOrder:
+          type: integer
+          example: 2
+      required:
+        - name
+        - isAvailable
+        - displayOrder
+
+    CreateItemRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Grilled Salmon"
+        description:
+          type: string
+          example: "Atlantic salmon with lemon butter"
+        priceMinorUnits:
+          type: integer
+          example: 2495
+        currencyCode:
+          type: string
+          example: "USD"
+        imageUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+          example: ["https://cdn.example.com/images/salmon.jpg"]
+        dietaryTags:
+          type: array
+          items:
+            type: string
+          example: ["gluten-free"]
+        isAvailable:
+          type: boolean
+          example: true
+        isSoldOut:
+          type: boolean
+          example: false
+        displayOrder:
+          type: integer
+          example: 3
+      required:
+        - name
+        - priceMinorUnits
+        - currencyCode
+        - isAvailable
+        - isSoldOut
+        - displayOrder
+
+    UpdateItemRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Grilled Atlantic Salmon"
+        description:
+          type: string
+          example: "Fresh Atlantic salmon with lemon herb butter"
+        priceMinorUnits:
+          type: integer
+          example: 2695
+        currencyCode:
+          type: string
+          example: "USD"
+        imageUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+          example: ["https://cdn.example.com/images/salmon-v2.jpg"]
+        dietaryTags:
+          type: array
+          items:
+            type: string
+          example: ["gluten-free", "dairy-free"]
+        isAvailable:
+          type: boolean
+          example: true
+        isSoldOut:
+          type: boolean
+          example: false
+        displayOrder:
+          type: integer
+          example: 3
+      required:
+        - name
+        - priceMinorUnits
+        - currencyCode
+        - isAvailable
+        - isSoldOut
+        - displayOrder
+
+    ToggleSoldOutRequest:
+      type: object
+      description: Quick toggle for sold-out status (kiosk use case)
+      properties:
+        isSoldOut:
+          type: boolean
+          example: true
+      required:
+        - isSoldOut
+
+    CreateModifierGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Size"
+        minSelections:
+          type: integer
+          example: 1
+        maxSelections:
+          type: integer
+          example: 1
+        isAvailable:
+          type: boolean
+          example: true
+        displayOrder:
+          type: integer
+          example: 0
+      required:
+        - name
+        - minSelections
+        - maxSelections
+        - isAvailable
+        - displayOrder
+
+    UpdateModifierGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Choose Size"
+        minSelections:
+          type: integer
+          example: 1
+        maxSelections:
+          type: integer
+          example: 1
+        isAvailable:
+          type: boolean
+          example: true
+        displayOrder:
+          type: integer
+          example: 0
+      required:
+        - name
+        - minSelections
+        - maxSelections
+        - isAvailable
+        - displayOrder
+
+    CreateModifierRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Large"
+        priceAdjustmentMinorUnits:
+          type: integer
+          example: 150
+        isAvailable:
+          type: boolean
+          example: true
+        isDefault:
+          type: boolean
+          example: false
+        displayOrder:
+          type: integer
+          example: 2
+      required:
+        - name
+        - priceAdjustmentMinorUnits
+        - isAvailable
+        - isDefault
+        - displayOrder
+
+    UpdateModifierRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Extra Large"
+        priceAdjustmentMinorUnits:
+          type: integer
+          example: 250
+        isAvailable:
+          type: boolean
+          example: true
+        isDefault:
+          type: boolean
+          example: false
+        displayOrder:
+          type: integer
+          example: 3
+      required:
+        - name
+        - priceAdjustmentMinorUnits
+        - isAvailable
+        - isDefault
+        - displayOrder
+
+    ReorderRequest:
+      type: object
+      description: Request to reorder a collection of items
+      properties:
+        orderedIds:
+          type: array
+          description: Array of IDs in the desired display order
+          items:
+            type: string
+            format: uuid
+          example:
+            - "c3d4e5f6-a7b8-9012-cdef-123456789012"
+            - "d4e5f6a7-b8c9-0123-def1-234567890123"
+            - "e5f6a7b8-c9d0-1234-ef12-345678901234"
+      required:
+        - orderedIds
+
+    ImageUploadRequest:
+      type: object
+      description: |
+        Request for a signed upload URL. The client will receive a pre-signed
+        URL to upload directly to cloud storage (S3, GCS, etc.), then include
+        the final URL in the item's imageUrls array.
+
+        **Why signed URLs:** Keeps image uploads out of the API request path,
+        allows direct client-to-storage uploads, reduces backend bandwidth,
+        and follows cloud storage best practices. The backend generates a
+        short-lived signed URL that grants temporary write permission.
+      properties:
+        filename:
+          type: string
+          description: Original filename with extension
+          example: "caesar-salad.jpg"
+        contentType:
+          type: string
+          description: MIME type of the image
+          example: "image/jpeg"
+        sizeBytes:
+          type: integer
+          description: File size in bytes (for validation)
+          example: 524288
+      required:
+        - filename
+        - contentType
+        - sizeBytes
+
+    ImageUploadResponse:
+      type: object
+      description: Response with signed URL for direct upload
+      properties:
+        uploadUrl:
+          type: string
+          format: uri
+          description: Pre-signed URL for uploading the image
+          example: "https://storage.example.com/bucket/images/uuid.jpg?signature=..."
+        publicUrl:
+          type: string
+          format: uri
+          description: Public URL to use in imageUrls after upload completes
+          example: "https://cdn.example.com/images/uuid.jpg"
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the signed upload URL expires
+          example: "2024-11-01T19:32:45Z"
+      required:
+        - uploadUrl
+        - publicUrl
+        - expiresAt
+
+    # ===========================================================================
+    # Bulk Import Models
+    # ===========================================================================
+
+    BulkMenuImportRow:
+      type: object
+      description: Single row in a bulk menu import
+      properties:
+        categoryName:
+          type: string
+          example: "Appetizers"
+        categoryDescription:
+          type: string
+          example: "Start your meal"
+        categoryDisplayOrder:
+          type: integer
+          example: 0
+        itemName:
+          type: string
+          example: "Caesar Salad"
+        itemDescription:
+          type: string
+          example: "Romaine, parmesan, croutons"
+        itemPriceMinorUnits:
+          type: integer
+          example: 1295
+        itemCurrencyCode:
+          type: string
+          example: "USD"
+        itemImageUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+          example: ["https://cdn.example.com/images/caesar.jpg"]
+        itemDietaryTags:
+          type: array
+          items:
+            type: string
+          example: ["vegetarian"]
+        itemDisplayOrder:
+          type: integer
+          example: 0
+        modifierGroupName:
+          type: string
+          example: "Size"
+        modifierGroupMinSelections:
+          type: integer
+          example: 1
+        modifierGroupMaxSelections:
+          type: integer
+          example: 1
+        modifierGroupDisplayOrder:
+          type: integer
+          example: 0
+        modifierName:
+          type: string
+          example: "Large"
+        modifierPriceAdjustment:
+          type: integer
+          example: 150
+        modifierIsDefault:
+          type: boolean
+          example: false
+        modifierDisplayOrder:
+          type: integer
+          example: 1
+      required:
+        - categoryName
+        - categoryDisplayOrder
+        - itemName
+        - itemPriceMinorUnits
+        - itemCurrencyCode
+        - itemDisplayOrder
+
+    BulkMenuImportRequest:
+      type: object
+      description: |
+        Bulk import request for creating a complete menu in one call.
+        Each row can define category, item, modifier group, and modifier data.
+        The backend will create all entities and relationships.
+      properties:
+        menuName:
+          type: string
+          example: "Imported Breakfast Menu"
+        menuDescription:
+          type: string
+          example: "Bulk imported from spreadsheet"
+        menuIsActive:
+          type: boolean
+          example: true
+        menuDisplayOrder:
+          type: integer
+          example: 0
+        dryRun:
+          type: boolean
+          description: If true, validate without saving (returns errors per row)
+          example: false
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/BulkMenuImportRow'
+      required:
+        - menuName
+        - menuIsActive
+        - menuDisplayOrder
+        - dryRun
+        - rows
+
+    BulkMenuImportRowError:
+      type: object
+      description: Validation error for a specific row in bulk import
+      properties:
+        rowIndex:
+          type: integer
+          description: Zero-indexed row number
+          example: 5
+        field:
+          type: string
+          description: Field name that failed validation
+          example: "itemPriceMinorUnits"
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Price must be greater than zero"
+      required:
+        - rowIndex
+        - field
+        - error
+
+    BulkMenuImportResponse:
+      type: object
+      description: Response for bulk import (dry-run or actual import)
+      properties:
+        success:
+          type: boolean
+          description: Whether the import succeeded
+          example: true
+        menuId:
+          type: string
+          format: uuid
+          description: ID of created menu (only if success is true and dryRun is false)
+          example: "f3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        categoriesCreated:
+          type: integer
+          description: Number of categories created
+          example: 5
+        itemsCreated:
+          type: integer
+          description: Number of items created
+          example: 23
+        modifierGroupsCreated:
+          type: integer
+          description: Number of modifier groups created
+          example: 15
+        modifiersCreated:
+          type: integer
+          description: Number of modifiers created
+          example: 47
+        errors:
+          type: array
+          description: Validation errors per row (if any)
+          items:
+            $ref: '#/components/schemas/BulkMenuImportRowError'
+      required:
+        - success
+
+paths:
+  # =============================================================================
+  # Menu Endpoints (Customer Read)
+  # =============================================================================
+
+  /business/{businessId}/product-menus:
+    get:
+      summary: List all product menus for a business
+      description: Returns a list of all menus (breakfast, lunch, etc.) for the business
+      tags:
+        - Customer
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      responses:
+        '200':
+          description: List of menus
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductMenu'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /product-menu/{menuId}/full:
+    get:
+      summary: Get full menu with categories, items, and modifiers
+      description: |
+        Returns a complete menu with all categories, items, and modifier groups
+        nested in a single response. This is the primary endpoint for the customer
+        app to fetch everything needed for browsing and ordering.
+      tags:
+        - Customer
+      parameters:
+        - name: menuId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Menu ID
+      responses:
+        '200':
+          description: Complete menu with nested data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullMenuResponse'
+        '404':
+          description: Menu not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Menu Management (Admin)
+  # =============================================================================
+
+  /business/{businessId}/product-menus/create:
+    post:
+      summary: Create a new product menu
+      description: Creates a new menu for the business
+      tags:
+        - Admin
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMenuRequest'
+      responses:
+        '201':
+          description: Menu created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductMenu'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /product-menu/{menuId}:
+    get:
+      summary: Get a single menu (without nested data)
+      description: Returns menu metadata only (no categories or items)
+      tags:
+        - Admin
+      parameters:
+        - name: menuId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Menu ID
+      responses:
+        '200':
+          description: Menu details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductMenu'
+        '404':
+          description: Menu not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update a product menu
+      description: Updates menu metadata (name, description, active status, etc.)
+      tags:
+        - Admin
+      parameters:
+        - name: menuId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Menu ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMenuRequest'
+      responses:
+        '200':
+          description: Menu updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductMenu'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Menu not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete a product menu
+      description: Deletes a menu and all its categories, items, and modifiers
+      tags:
+        - Admin
+      parameters:
+        - name: menuId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Menu ID
+      responses:
+        '204':
+          description: Menu deleted
+        '404':
+          description: Menu not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /business/{businessId}/product-menus/reorder:
+    put:
+      summary: Reorder menus for a business
+      description: Updates display order for all menus
+      tags:
+        - Admin
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+      responses:
+        '200':
+          description: Menus reordered
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductMenu'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Category Management (Admin)
+  # =============================================================================
+
+  /product-menu/{menuId}/categories:
+    get:
+      summary: List categories for a menu
+      description: Returns all categories for the menu (without items)
+      tags:
+        - Admin
+      parameters:
+        - name: menuId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Menu ID
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create a category
+      description: Creates a new category within the menu
+      tags:
+        - Admin
+      parameters:
+        - name: menuId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Menu ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /category/{categoryId}:
+    get:
+      summary: Get a single category
+      description: Returns category metadata only (no items)
+      tags:
+        - Admin
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Category ID
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update a category
+      description: Updates category metadata
+      tags:
+        - Admin
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCategoryRequest'
+      responses:
+        '200':
+          description: Category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete a category
+      description: Deletes a category and all its items
+      tags:
+        - Admin
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Category ID
+      responses:
+        '204':
+          description: Category deleted
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /product-menu/{menuId}/categories/reorder:
+    put:
+      summary: Reorder categories within a menu
+      description: Updates display order for all categories
+      tags:
+        - Admin
+      parameters:
+        - name: menuId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Menu ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+      responses:
+        '200':
+          description: Categories reordered
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Item Management (Admin)
+  # =============================================================================
+
+  /category/{categoryId}/items:
+    get:
+      summary: List items for a category
+      description: Returns all items in the category (without modifier groups)
+      tags:
+        - Admin
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Category ID
+      responses:
+        '200':
+          description: List of items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Item'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create an item
+      description: Creates a new item within the category
+      tags:
+        - Admin
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+      responses:
+        '201':
+          description: Item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /item/{itemId}:
+    get:
+      summary: Get a single item
+      description: Returns item metadata only (no modifier groups)
+      tags:
+        - Admin
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Item ID
+      responses:
+        '200':
+          description: Item details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '404':
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update an item
+      description: Updates item metadata and pricing
+      tags:
+        - Admin
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateItemRequest'
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete an item
+      description: Deletes an item and all its modifier groups
+      tags:
+        - Admin
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Item ID
+      responses:
+        '204':
+          description: Item deleted
+        '404':
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /item/{itemId}/sold-out:
+    put:
+      summary: Toggle sold-out status for an item
+      description: |
+        Quick endpoint for kiosks to mark items as sold out without
+        requiring a full item update. This is a convenience endpoint
+        for operational use.
+      tags:
+        - Admin
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToggleSoldOutRequest'
+      responses:
+        '200':
+          description: Item sold-out status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /category/{categoryId}/items/reorder:
+    put:
+      summary: Reorder items within a category
+      description: Updates display order for all items
+      tags:
+        - Admin
+      parameters:
+        - name: categoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+      responses:
+        '200':
+          description: Items reordered
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Item'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Modifier Group Management (Admin)
+  # =============================================================================
+
+  /item/{itemId}/modifier-groups:
+    get:
+      summary: List modifier groups for an item
+      description: Returns all modifier groups for the item (without modifiers)
+      tags:
+        - Admin
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Item ID
+      responses:
+        '200':
+          description: List of modifier groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModifierGroup'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create a modifier group
+      description: Creates a new modifier group for the item
+      tags:
+        - Admin
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModifierGroupRequest'
+      responses:
+        '201':
+          description: Modifier group created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierGroup'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /modifier-group/{modifierGroupId}:
+    get:
+      summary: Get a single modifier group
+      description: Returns modifier group metadata only (no modifiers)
+      tags:
+        - Admin
+      parameters:
+        - name: modifierGroupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Modifier group ID
+      responses:
+        '200':
+          description: Modifier group details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierGroup'
+        '404':
+          description: Modifier group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update a modifier group
+      description: Updates modifier group metadata
+      tags:
+        - Admin
+      parameters:
+        - name: modifierGroupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Modifier group ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateModifierGroupRequest'
+      responses:
+        '200':
+          description: Modifier group updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierGroup'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Modifier group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete a modifier group
+      description: Deletes a modifier group and all its modifiers
+      tags:
+        - Admin
+      parameters:
+        - name: modifierGroupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Modifier group ID
+      responses:
+        '204':
+          description: Modifier group deleted
+        '404':
+          description: Modifier group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /item/{itemId}/modifier-groups/reorder:
+    put:
+      summary: Reorder modifier groups for an item
+      description: Updates display order for all modifier groups
+      tags:
+        - Admin
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+      responses:
+        '200':
+          description: Modifier groups reordered
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModifierGroup'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Modifier Management (Admin)
+  # =============================================================================
+
+  /modifier-group/{modifierGroupId}/modifiers:
+    get:
+      summary: List modifiers for a modifier group
+      description: Returns all modifiers in the group
+      tags:
+        - Admin
+      parameters:
+        - name: modifierGroupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Modifier group ID
+      responses:
+        '200':
+          description: List of modifiers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Modifier'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create a modifier
+      description: Creates a new modifier within the group
+      tags:
+        - Admin
+      parameters:
+        - name: modifierGroupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Modifier group ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModifierRequest'
+      responses:
+        '201':
+          description: Modifier created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Modifier'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /modifier/{modifierId}:
+    get:
+      summary: Get a single modifier
+      description: Returns modifier details
+      tags:
+        - Admin
+      parameters:
+        - name: modifierId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Modifier ID
+      responses:
+        '200':
+          description: Modifier details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Modifier'
+        '404':
+          description: Modifier not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update a modifier
+      description: Updates modifier metadata and pricing
+      tags:
+        - Admin
+      parameters:
+        - name: modifierId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Modifier ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateModifierRequest'
+      responses:
+        '200':
+          description: Modifier updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Modifier'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Modifier not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete a modifier
+      description: Deletes a modifier
+      tags:
+        - Admin
+      parameters:
+        - name: modifierId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Modifier ID
+      responses:
+        '204':
+          description: Modifier deleted
+        '404':
+          description: Modifier not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /modifier-group/{modifierGroupId}/modifiers/reorder:
+    put:
+      summary: Reorder modifiers within a group
+      description: Updates display order for all modifiers
+      tags:
+        - Admin
+      parameters:
+        - name: modifierGroupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Modifier group ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+      responses:
+        '200':
+          description: Modifiers reordered
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Modifier'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Image Upload (Admin)
+  # =============================================================================
+
+  /product-catalog/image-upload:
+    post:
+      summary: Request a signed URL for image upload
+      description: |
+        Returns a pre-signed URL for uploading an image directly to cloud storage.
+        The client uploads the image to the signed URL, then includes the public
+        URL in the item's imageUrls array when creating or updating an item.
+      tags:
+        - Admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageUploadRequest'
+      responses:
+        '200':
+          description: Signed upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Bulk Import (Admin)
+  # =============================================================================
+
+  /business/{businessId}/product-menus/bulk-import:
+    post:
+      summary: Bulk import a complete menu
+      description: |
+        Imports a complete menu with categories, items, and modifiers in one call.
+        Supports dry-run mode for validation without saving. Returns validation
+        errors per row if any data is invalid.
+
+        **Note:** This endpoint only handles structured JSON input. It does NOT
+        parse PDFs, photos, or other file formats. The shape is defined for
+        programmatic import from spreadsheets or other data sources.
+      tags:
+        - Admin
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkMenuImportRequest'
+      responses:
+        '200':
+          description: Import completed or validated (check success field)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkMenuImportResponse'
+        '400':
+          description: Invalid request structure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
