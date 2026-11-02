@@ -1,0 +1,16 @@
+{
+  "description": "Example review response without a business reply",
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "e5f6a7b8-c9d0-1234-ef12-345678901234",
+      "customerId": "f6a7b8c9-d0e1-2345-f123-456789012345",
+      "businessId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "rating": 3,
+      "reviewText": "Good food but the wait was a bit long. The tacos were tasty though.",
+      "flagged": false,
+      "createdAt": "2024-11-03T12:45:20Z",
+      "updatedAt": "2024-11-03T12:45:20Z"
+    }
+  }
+}

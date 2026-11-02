@@ -1,0 +1,36 @@
+{
+  "description": "Example request to add a business reply to a review",
+  "request": {
+    "method": "PUT",
+    "path": "/api/review/a1b2c3d4-e5f6-7890-abcd-ef1234567890/reply",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer <token>"
+    },
+    "body": {
+      "replyText": "Thank you so much for the kind words! We're thrilled you enjoyed our tacos and salsa bar. We look forward to serving you again soon!"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "customerId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "businessId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "rating": 5,
+      "reviewText": "Amazing tacos! The carne asada was perfectly seasoned and the tortillas were fresh. The salsa bar had great variety. Highly recommend!",
+      "photoUrls": [
+        "https://cdn.example.com/reviews/a1b2c3d4-taco-plate.jpg",
+        "https://cdn.example.com/reviews/a1b2c3d4-salsa-bar.jpg"
+      ],
+      "businessReply": {
+        "replyText": "Thank you so much for the kind words! We're thrilled you enjoyed our tacos and salsa bar. We look forward to serving you again soon!",
+        "repliedAt": "2024-11-02T10:15:30Z",
+        "repliedBy": "d4e5f6a7-b8c9-0123-def1-234567890123"
+      },
+      "flagged": false,
+      "createdAt": "2024-11-01T18:32:45Z",
+      "updatedAt": "2024-11-01T18:32:45Z"
+    }
+  }
+}
