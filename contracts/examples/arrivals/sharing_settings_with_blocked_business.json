@@ -1,0 +1,9 @@
+{
+  "customerId": "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c",
+  "sharingLevel": "standard",
+  "blockedBusinesses": [
+    "biz_123e4567-e89b-12d3-a456-426614174000"
+  ],
+  "createdAt": "2026-11-01T12:00:00Z",
+  "updatedAt": "2026-11-01T15:30:00Z"
+}

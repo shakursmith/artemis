@@ -1,0 +1,701 @@
+openapi: 3.0.3
+info:
+  title: Artemis Arrivals API
+  description: |
+    Defines how the kiosk learns that a customer has arrived at a business location,
+    and the customer profile information that can be shared with the business.
+
+    ## Event Flow
+
+    1. Customer device detects beacon entry and reports arrival event to backend
+    2. Backend processes the event and broadcasts it to connected kiosks at that location
+    3. Kiosk receives arrival event via SSE stream and displays customer information
+    4. Customer device reports dwelling and exit events as proximity changes
+
+    ## Sharing Levels
+
+    Customers control what information businesses can see through sharing settings:
+    - **minimal**: First name only (default for new customers)
+    - **standard**: First name + purchase history summary + loyalty status
+    - **full**: All available data including review count
+
+    ## Privacy
+
+    - Only customers with sharing settings enabled appear in arrival events
+    - Optional profile fields are absent unless sharing settings permit them
+    - Proximity is coarse (immediate/near/far) to avoid tracking exact position
+    - Customer device controls event reporting; backend does not track without consent
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development server
+
+tags:
+  - name: arrivals
+    description: Customer arrival events and real-time feeds
+  - name: customers
+    description: Customer profiles visible to businesses
+  - name: settings
+    description: Customer sharing and privacy settings
+
+paths:
+  # Customer device reports arrival events to backend
+  /arrival:
+    post:
+      summary: Report arrival event from customer device
+      description: |
+        Customer device calls this endpoint when beacon proximity changes.
+        The backend validates the event, stores it, and broadcasts to kiosks at the location.
+
+        **States:**
+        - `entered`: Customer device first detected the beacon (proximity immediate or near)
+        - `dwelling`: Customer remains in range, periodic heartbeat to confirm presence
+        - `exited`: Customer device lost beacon signal or moved to far proximity
+
+        **Proximity bands:**
+        - `immediate`: 0-0.5m (very close to beacon)
+        - `near`: 0.5-3m (within room)
+        - `far`: 3-10m (edge of range, considered exited)
+      tags:
+        - arrivals
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArrivalEventRequest'
+            examples:
+              entered:
+                $ref: '#/components/examples/ArrivalEventEntered'
+              dwelling:
+                $ref: '#/components/examples/ArrivalEventDwelling'
+              exited:
+                $ref: '#/components/examples/ArrivalEventExited'
+      responses:
+        '201':
+          description: Event recorded and broadcast to kiosks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArrivalEvent'
+        '400':
+          description: Invalid request (missing fields, invalid state, unknown beacon)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_state:
+                  value:
+                    error: "Invalid state: must be entered, dwelling, or exited"
+                unknown_beacon:
+                  value:
+                    error: "Beacon not found: no room configured with this UUID/major/minor"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Kiosk subscribes to arrival events at a location via SSE
+  /location/{locationId}/arrivals/stream:
+    get:
+      summary: Subscribe to arrival events at a location (SSE)
+      description: |
+        Server-Sent Events (SSE) stream that pushes arrival events to the kiosk in real-time.
+
+        **Why SSE:**
+        - Unidirectional data flow (backend → kiosk) matches the arrival event pattern
+        - Automatic reconnection built into EventSource API
+        - Simpler than WebSockets for read-only real-time feeds
+        - HTTP-based, easier to debug and proxy
+        - SSE automatically resumes with Last-Event-ID on reconnect
+
+        **Reconnect behavior:**
+        - Browser EventSource API automatically reconnects on disconnect
+        - Backend keeps last 100 events per location in memory for 5 minutes
+        - On reconnect, client sends Last-Event-ID header
+        - Backend replays missed events since that ID, then continues live stream
+
+        **Event format:**
+        Each SSE message is a JSON-encoded ArrivalEvent with an id field.
+
+        ```
+        id: evt_a1b2c3d4
+        event: arrival
+        data: {"id":"evt_a1b2c3d4","customerId":"cust_uuid",...}
+
+        ```
+
+        **Connection management:**
+        - Keep-alive: Backend sends comment lines (`: keep-alive`) every 30s to prevent timeout
+        - Client should close connection when kiosk goes offline or location changes
+        - Backend closes connection if location is deleted or kiosk authorization fails (future)
+      tags:
+        - arrivals
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          description: UUID of the business location (determines which beacon events to stream)
+          schema:
+            type: string
+            format: uuid
+          example: "loc_f4e8c7b6-9d2a-4f1e-8c3b-6a9d4f2e1c8b"
+      responses:
+        '200':
+          description: SSE stream of arrival events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Each event is a newline-delimited SSE message with id, event, and data fields.
+                  The data field contains a JSON-encoded ArrivalEvent object.
+              examples:
+                stream:
+                  value: |
+                    id: evt_001
+                    event: arrival
+                    data: {"id":"evt_001","customerId":"cust_123","businessId":"biz_456","locationId":"loc_789","beaconUuid":"E2C56DB5-DFFB-48D2-B060-D0F5A71096E0","beaconMajor":1,"beaconMinor":100,"state":"entered","proximity":"near","timestamp":"2026-11-01T14:30:00Z"}
+
+                    : keep-alive
+
+                    id: evt_002
+                    event: arrival
+                    data: {"id":"evt_002","customerId":"cust_123","businessId":"biz_456","locationId":"loc_789","beaconUuid":"E2C56DB5-DFFB-48D2-B060-D0F5A71096E0","beaconMajor":1,"beaconMinor":100,"state":"dwelling","proximity":"immediate","timestamp":"2026-11-01T14:31:00Z"}
+        '404':
+          description: Location not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Kiosk retrieves customer profile for an arrival
+  /customer/{customerId}/profile:
+    get:
+      summary: Get customer profile visible to business
+      description: |
+        Returns the customer profile as visible to the business, filtered by the customer's
+        sharing settings. Optional fields are omitted if the customer has not granted permission.
+
+        **New customer detection:**
+        - If `purchaseHistory` is absent and `loyaltyStatus` is absent, the customer is new
+        - Kiosk should show a welcome message and prompt to leave a review
+
+        **Sharing levels:**
+        - `minimal`: firstName only
+        - `standard`: firstName, purchaseHistory, loyaltyStatus
+        - `full`: firstName, purchaseHistory, loyaltyStatus, reviewCount
+      tags:
+        - customers
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: UUID of the customer
+          schema:
+            type: string
+            format: uuid
+          example: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        - name: businessId
+          in: query
+          required: true
+          description: UUID of the business requesting the profile (for filtering by sharing settings)
+          schema:
+            type: string
+            format: uuid
+          example: "biz_f8e7d6c5-4b3a-2e1f-9d8c-7b6a5e4d3c2b"
+      responses:
+        '200':
+          description: Customer profile filtered by sharing settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerProfile'
+              examples:
+                minimal:
+                  $ref: '#/components/examples/CustomerProfileMinimal'
+                standard:
+                  $ref: '#/components/examples/CustomerProfileStandard'
+                full:
+                  $ref: '#/components/examples/CustomerProfileFull'
+                new_customer:
+                  $ref: '#/components/examples/CustomerProfileNew'
+        '404':
+          description: Customer not found or sharing disabled for this business
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Customer not found"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Customer manages sharing settings
+  /customer/{customerId}/sharing:
+    get:
+      summary: Get customer sharing settings
+      description: |
+        Returns the customer's current sharing settings. Used by the customer app
+        to display privacy controls and current sharing level.
+      tags:
+        - settings
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: UUID of the customer
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Customer sharing settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerSharingSettings'
+              examples:
+                default:
+                  $ref: '#/components/examples/CustomerSharingSettingsDefault'
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update customer sharing settings
+      description: |
+        Customer updates their sharing level and business-specific overrides.
+        Changes take effect immediately for new arrival events.
+      tags:
+        - settings
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          description: UUID of the customer
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerSharingSettingsUpdate'
+            examples:
+              change_level:
+                summary: Change sharing level to standard
+                value:
+                  sharingLevel: "standard"
+              block_business:
+                summary: Block a specific business
+                value:
+                  sharingLevel: "standard"
+                  blockedBusinesses:
+                    - "biz_123"
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerSharingSettings'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Invalid sharing level: must be minimal, standard, or full"
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    # Arrival event request from customer device
+    ArrivalEventRequest:
+      type: object
+      required:
+        - customerId
+        - beaconUuid
+        - beaconMajor
+        - beaconMinor
+        - state
+        - proximity
+        - timestamp
+      properties:
+        customerId:
+          type: string
+          format: uuid
+          description: UUID of the customer whose device detected the beacon
+          example: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        beaconUuid:
+          type: string
+          format: uuid
+          description: iBeacon proximity UUID
+          example: "E2C56DB5-DFFB-48D2-B060-D0F5A71096E0"
+        beaconMajor:
+          type: integer
+          minimum: 0
+          maximum: 65535
+          description: iBeacon major value (identifies business)
+          example: 1
+        beaconMinor:
+          type: integer
+          minimum: 0
+          maximum: 65535
+          description: iBeacon minor value (identifies location/room within business)
+          example: 100
+        state:
+          type: string
+          enum: [entered, dwelling, exited]
+          description: |
+            Current state of the customer relative to the beacon:
+            - entered: Just detected beacon (first event in sequence)
+            - dwelling: Still in range (periodic heartbeat)
+            - exited: Lost beacon signal or moved to far proximity
+          example: "entered"
+        proximity:
+          type: string
+          enum: [immediate, near, far]
+          description: |
+            Coarse proximity band:
+            - immediate: 0-0.5m (very close)
+            - near: 0.5-3m (within room)
+            - far: 3-10m (edge of range, triggers exit)
+          example: "near"
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the event occurred on the device
+          example: "2026-11-01T14:30:00Z"
+
+    # Arrival event (stored and broadcast)
+    ArrivalEvent:
+      type: object
+      required:
+        - id
+        - customerId
+        - businessId
+        - locationId
+        - beaconUuid
+        - beaconMajor
+        - beaconMinor
+        - state
+        - proximity
+        - timestamp
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: UUID of the arrival event (for SSE event ID and deduplication)
+          example: "evt_f1e2d3c4-b5a6-9876-5432-1098fedc7654"
+        customerId:
+          type: string
+          format: uuid
+          description: UUID of the customer
+          example: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        businessId:
+          type: string
+          format: uuid
+          description: UUID of the business (resolved from beacon)
+          example: "biz_f8e7d6c5-4b3a-2e1f-9d8c-7b6a5e4d3c2b"
+        locationId:
+          type: string
+          format: uuid
+          description: UUID of the business location (resolved from beacon)
+          example: "loc_f4e8c7b6-9d2a-4f1e-8c3b-6a9d4f2e1c8b"
+        beaconUuid:
+          type: string
+          format: uuid
+          description: iBeacon proximity UUID
+          example: "E2C56DB5-DFFB-48D2-B060-D0F5A71096E0"
+        beaconMajor:
+          type: integer
+          minimum: 0
+          maximum: 65535
+          description: iBeacon major value
+          example: 1
+        beaconMinor:
+          type: integer
+          minimum: 0
+          maximum: 65535
+          description: iBeacon minor value
+          example: 100
+        state:
+          type: string
+          enum: [entered, dwelling, exited]
+          description: Current state (entered, dwelling, exited)
+          example: "entered"
+        proximity:
+          type: string
+          enum: [immediate, near, far]
+          description: Coarse proximity band (immediate, near, far)
+          example: "near"
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the event occurred on the device
+          example: "2026-11-01T14:30:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the event was recorded by the backend
+          example: "2026-11-01T14:30:01Z"
+
+    # Customer profile visible to business
+    CustomerProfile:
+      type: object
+      required:
+        - id
+        - firstName
+        - sharingLevel
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID of the customer
+          example: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        firstName:
+          type: string
+          description: Customer's first name (always visible)
+          example: "Shakur"
+        sharingLevel:
+          type: string
+          enum: [minimal, standard, full]
+          description: Current sharing level that determines which optional fields are present
+          example: "standard"
+        purchaseHistory:
+          type: object
+          description: |
+            Summary of customer's purchase history at this business.
+            Present only if sharingLevel is 'standard' or 'full'.
+            Absent for new customers with no history.
+          properties:
+            totalPurchases:
+              type: integer
+              minimum: 0
+              description: Total number of purchases at this business
+              example: 12
+            totalSpent:
+              type: number
+              format: float
+              minimum: 0
+              description: Total amount spent (in dollars)
+              example: 234.50
+            lastVisit:
+              type: string
+              format: date-time
+              description: ISO 8601 timestamp of most recent purchase
+              example: "2026-10-15T18:45:00Z"
+        loyaltyStatus:
+          type: string
+          enum: [bronze, silver, gold, platinum]
+          description: |
+            Customer's loyalty tier at this business.
+            Present only if sharingLevel is 'standard' or 'full'.
+            Absent for new customers with no history.
+          example: "gold"
+        reviewCount:
+          type: integer
+          minimum: 0
+          description: |
+            Number of reviews the customer has left for this business.
+            Present only if sharingLevel is 'full'.
+          example: 3
+
+    # Customer sharing settings
+    CustomerSharingSettings:
+      type: object
+      required:
+        - customerId
+        - sharingLevel
+        - blockedBusinesses
+        - createdAt
+        - updatedAt
+      properties:
+        customerId:
+          type: string
+          format: uuid
+          description: UUID of the customer
+          example: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        sharingLevel:
+          type: string
+          enum: [minimal, standard, full]
+          description: |
+            Global sharing level:
+            - minimal: firstName only (default)
+            - standard: firstName + purchaseHistory + loyaltyStatus
+            - full: all fields including reviewCount
+          example: "minimal"
+        blockedBusinesses:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: List of business UUIDs where sharing is completely disabled
+          example: []
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when settings were created
+          example: "2026-11-01T12:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when settings were last updated
+          example: "2026-11-01T12:00:00Z"
+
+    # Update request for customer sharing settings
+    CustomerSharingSettingsUpdate:
+      type: object
+      properties:
+        sharingLevel:
+          type: string
+          enum: [minimal, standard, full]
+          description: New sharing level
+          example: "standard"
+        blockedBusinesses:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Updated list of blocked business UUIDs
+          example: ["biz_123"]
+
+    # Standard error response
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Customer not found"
+
+  # Reusable examples
+  examples:
+    # Arrival event examples
+    ArrivalEventEntered:
+      summary: Customer entered beacon range
+      value:
+        customerId: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        beaconUuid: "E2C56DB5-DFFB-48D2-B060-D0F5A71096E0"
+        beaconMajor: 1
+        beaconMinor: 100
+        state: "entered"
+        proximity: "near"
+        timestamp: "2026-11-01T14:30:00Z"
+
+    ArrivalEventDwelling:
+      summary: Customer dwelling in beacon range
+      value:
+        customerId: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        beaconUuid: "E2C56DB5-DFFB-48D2-B060-D0F5A71096E0"
+        beaconMajor: 1
+        beaconMinor: 100
+        state: "dwelling"
+        proximity: "immediate"
+        timestamp: "2026-11-01T14:31:00Z"
+
+    ArrivalEventExited:
+      summary: Customer exited beacon range
+      value:
+        customerId: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        beaconUuid: "E2C56DB5-DFFB-48D2-B060-D0F5A71096E0"
+        beaconMajor: 1
+        beaconMinor: 100
+        state: "exited"
+        proximity: "far"
+        timestamp: "2026-11-01T14:35:00Z"
+
+    # Customer profile examples for each sharing level
+    CustomerProfileMinimal:
+      summary: Minimal sharing (first name only)
+      description: Default for new customers, shows only first name
+      value:
+        id: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        firstName: "Shakur"
+        sharingLevel: "minimal"
+
+    CustomerProfileStandard:
+      summary: Standard sharing (first name + history + loyalty)
+      description: Shows purchase history and loyalty status
+      value:
+        id: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        firstName: "Shakur"
+        sharingLevel: "standard"
+        purchaseHistory:
+          totalPurchases: 12
+          totalSpent: 234.50
+          lastVisit: "2026-10-15T18:45:00Z"
+        loyaltyStatus: "gold"
+
+    CustomerProfileFull:
+      summary: Full sharing (all available data)
+      description: Shows all fields including review count
+      value:
+        id: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        firstName: "Shakur"
+        sharingLevel: "full"
+        purchaseHistory:
+          totalPurchases: 12
+          totalSpent: 234.50
+          lastVisit: "2026-10-15T18:45:00Z"
+        loyaltyStatus: "gold"
+        reviewCount: 3
+
+    CustomerProfileNew:
+      summary: New customer with no history
+      description: Missing purchaseHistory and loyaltyStatus indicates new customer
+      value:
+        id: "cust_b1c2d3e4-f5a6-9876-5432-1098fedc7654"
+        firstName: "Jordan"
+        sharingLevel: "standard"
+
+    # Customer sharing settings examples
+    CustomerSharingSettingsDefault:
+      summary: Default settings for new customer
+      description: Conservative default showing only first name
+      value:
+        customerId: "cust_a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        sharingLevel: "minimal"
+        blockedBusinesses: []
+        createdAt: "2026-11-01T12:00:00Z"
+        updatedAt: "2026-11-01T12:00:00Z"
