@@ -15,7 +15,9 @@ import (
 // Returns the handler and the underlying *sql.DB for seeding test data.
 func setupTestOrderHandler(t *testing.T) (*OrderHandler, *sql.DB) {
 	t.Helper()
-	database, err := db.InitDB(":memory:")
+	// Use file:memdb?mode=memory&cache=shared for shared in-memory database
+	// This ensures all connections see the same data (required for :memory: databases with connection pools)
+	database, err := db.InitDB("file:memdb?mode=memory&cache=shared")
 	if err != nil {
 		t.Fatalf("Failed to init test DB: %v", err)
 	}
