@@ -1,0 +1,48 @@
+{
+  "id": "f1a2b3c4-d5e6-7890-fab1-234567890123",
+  "customerId": "c1d2e3f4-a5b6-7890-cdef-123456789012",
+  "businessId": "b1c2d3e4-f5a6-7890-bcde-f12345678901",
+  "locationId": "l1m2n3o4-p5q6-7890-lmno-p12345678901",
+  "orderType": "order-ahead",
+  "requestedPickupTime": "2024-11-01T19:30:00Z",
+  "status": "confirmed",
+  "subtotalMinorUnits": 3490,
+  "taxMinorUnits": 314,
+  "totalMinorUnits": 3804,
+  "currencyCode": "USD",
+  "paymentProvider": "stub",
+  "paymentIntentId": "pi_stub_123456789",
+  "paymentStatus": "captured",
+  "createdAt": "2024-11-01T18:36:00Z",
+  "updatedAt": "2024-11-01T18:37:15Z",
+  "lineItems": [
+    {
+      "id": "g1h2i3j4-k5l6-7890-ghi1-234567890123",
+      "orderId": "f1a2b3c4-d5e6-7890-fab1-234567890123",
+      "itemId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "itemName": "Caesar Salad",
+      "itemPriceMinorUnits": 1295,
+      "quantity": 2,
+      "modifiers": [
+        {
+          "modifierId": "e5f6a7b8-c9d0-1234-ef12-345678901234",
+          "modifierName": "Large",
+          "priceAdjustmentMinorUnits": 200
+        }
+      ],
+      "lineItemTotalMinorUnits": 2990,
+      "createdAt": "2024-11-01T18:36:00Z"
+    },
+    {
+      "id": "g2h3i4j5-k6l7-8901-ghi2-345678901234",
+      "orderId": "f1a2b3c4-d5e6-7890-fab1-234567890123",
+      "itemId": "c4d5e6f7-a8b9-0123-cdef-234567890123",
+      "itemName": "Iced Coffee",
+      "itemPriceMinorUnits": 500,
+      "quantity": 1,
+      "modifiers": [],
+      "lineItemTotalMinorUnits": 500,
+      "createdAt": "2024-11-01T18:36:00Z"
+    }
+  ]
+}

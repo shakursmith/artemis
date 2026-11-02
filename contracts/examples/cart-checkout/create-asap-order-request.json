@@ -1,0 +1,6 @@
+{
+  "cartId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "locationId": "l1m2n3o4-p5q6-7890-lmno-p12345678901",
+  "orderType": "asap",
+  "paymentProvider": "stub"
+}

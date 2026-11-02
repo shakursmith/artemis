@@ -1,0 +1,8 @@
+{
+  "cartId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "locationId": "l1m2n3o4-p5q6-7890-lmno-p12345678901",
+  "orderType": "order-ahead",
+  "requestedPickupTime": "2024-11-01T19:30:00Z",
+  "paymentProvider": "stub",
+  "paymentIntentId": "pi_stub_123456789"
+}

@@ -1,0 +1,34 @@
+{
+  "eventType": "new_order",
+  "order": {
+    "id": "f1a2b3c4-d5e6-7890-fab1-234567890123",
+    "customerId": "c1d2e3f4-a5b6-7890-cdef-123456789012",
+    "businessId": "b1c2d3e4-f5a6-7890-bcde-f12345678901",
+    "locationId": "l1m2n3o4-p5q6-7890-lmno-p12345678901",
+    "orderType": "asap",
+    "status": "pending",
+    "subtotalMinorUnits": 1500,
+    "taxMinorUnits": 135,
+    "totalMinorUnits": 1635,
+    "currencyCode": "USD",
+    "paymentProvider": "stub",
+    "paymentIntentId": "pi_stub_987654321",
+    "paymentStatus": "captured",
+    "createdAt": "2024-11-01T18:45:00Z",
+    "updatedAt": "2024-11-01T18:45:00Z",
+    "lineItems": [
+      {
+        "id": "g3h4i5j6-k7l8-9012-ghi3-456789012345",
+        "orderId": "f1a2b3c4-d5e6-7890-fab1-234567890123",
+        "itemId": "c5d6e7f8-a9b0-1234-cdef-345678901234",
+        "itemName": "Cappuccino",
+        "itemPriceMinorUnits": 500,
+        "quantity": 3,
+        "modifiers": [],
+        "lineItemTotalMinorUnits": 1500,
+        "createdAt": "2024-11-01T18:45:00Z"
+      }
+    ]
+  },
+  "timestamp": "2024-11-01T18:45:00Z"
+}
