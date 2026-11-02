@@ -331,6 +331,60 @@ var migrations = []string{
 		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
 		FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE
 	);`,
+
+	// =============================================================================
+	// Loyalty and Favorites Tables
+	// =============================================================================
+
+	// loyalty_programs table — simple points-based loyalty program configuration
+	// A business has at most one loyalty program. Loyalty is opt-in (no program = loyalty disabled).
+	// Points are awarded automatically when orders transition to "completed" status.
+	// Redemption is future work - this version is configuration-only.
+	// UNIQUE constraint on business_id ensures one program per business.
+	`CREATE TABLE IF NOT EXISTS loyalty_programs (
+		id TEXT PRIMARY KEY,
+		business_id TEXT NOT NULL UNIQUE,
+		name TEXT NOT NULL,
+		points_multiplier REAL NOT NULL,
+		reward_threshold INTEGER NOT NULL,
+		reward_description TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
+	);`,
+
+	// loyalty_memberships table — customer membership in a business's loyalty program
+	// Memberships are auto-created when a customer places their first order at a business
+	// with an active loyalty program. Points are awarded on order completion.
+	// UNIQUE constraint on (customer_id, business_id) ensures one membership per customer per business.
+	`CREATE TABLE IF NOT EXISTS loyalty_memberships (
+		id TEXT PRIMARY KEY,
+		customer_id TEXT NOT NULL,
+		business_id TEXT NOT NULL,
+		points_balance INTEGER NOT NULL DEFAULT 0,
+		joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		last_activity_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+		UNIQUE (customer_id, business_id)
+	);`,
+
+	// favorites table — customer's bookmarked menu items for quick reordering
+	// Favorites include full item details (name, price, availability) when retrieved.
+	// business_id is denormalized for filtering (favorites per business).
+	// favorited_at is updated if the customer re-adds the same item (idempotent).
+	// UNIQUE constraint on (customer_id, item_id) ensures one favorite per item per customer.
+	`CREATE TABLE IF NOT EXISTS favorites (
+		id TEXT PRIMARY KEY,
+		customer_id TEXT NOT NULL,
+		item_id TEXT NOT NULL,
+		business_id TEXT NOT NULL,
+		favorited_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+		FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+		FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
+		UNIQUE (customer_id, item_id)
+	);`,
 }
 
 // RunMigrations executes all schema migrations against the given database connection.

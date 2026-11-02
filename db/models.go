@@ -388,3 +388,46 @@ type ArrivalEvent struct {
 	Timestamp  time.Time `json:"timestamp"`   // when the event occurred on the device
 	CreatedAt  time.Time `json:"createdAt"`   // when the event was recorded by the backend
 }
+
+// =============================================================================
+// Loyalty and Favorites Models
+// =============================================================================
+
+// LoyaltyProgram represents a simple points-based loyalty program for a business.
+// A business can have at most one loyalty program. Customers automatically join
+// when placing their first order at a business with an active program.
+// Points are awarded when orders are marked as completed (handled in order flow).
+// Redemption is not yet implemented - this version is configuration-only.
+type LoyaltyProgram struct {
+	ID               string    `json:"id"`
+	BusinessID       string    `json:"businessId"`
+	Name             string    `json:"name"`                // e.g., "Cafe Rewards", "VIP Club"
+	PointsMultiplier float64   `json:"pointsMultiplier"`    // points per dollar spent (e.g., 1.0, 1.5, 2.0)
+	RewardThreshold  int       `json:"rewardThreshold"`     // points needed to earn a reward
+	RewardDescription string   `json:"rewardDescription"`   // e.g., "Free coffee"
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+}
+
+// LoyaltyMembership represents a customer's membership in a business's loyalty program.
+// Memberships are auto-created when a customer places their first order at a business
+// with an active loyalty program. Points are awarded automatically when orders complete.
+type LoyaltyMembership struct {
+	ID             string    `json:"id"`
+	CustomerID     string    `json:"customerId"`
+	BusinessID     string    `json:"businessId"`
+	PointsBalance  int       `json:"pointsBalance"`          // current points balance
+	JoinedAt       time.Time `json:"joinedAt"`               // when the membership was created
+	LastActivityAt time.Time `json:"lastActivityAt"`         // last time points were awarded
+}
+
+// Favorite represents a customer's bookmarked menu item for quick reordering.
+// The favorites list includes full item details (name, price, availability) from
+// the product catalog, so the list is immediately useful without additional lookups.
+type Favorite struct {
+	ID          string    `json:"id"`
+	CustomerID  string    `json:"customerId"`
+	ItemID      string    `json:"itemId"`
+	BusinessID  string    `json:"businessId"`  // denormalized for filtering
+	FavoritedAt time.Time `json:"favoritedAt"` // timestamp when favorited (updated on re-add)
+}

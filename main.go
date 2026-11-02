@@ -81,6 +81,8 @@ func main() {
 	productCatalogHandler := handlers.NewProductCatalogHandler(database)
 	customerHandler := handlers.NewCustomerHandler(database)
 	arrivalHandler := handlers.NewArrivalHandler(database)
+	loyaltyHandler := handlers.NewLoyaltyHandler(database)
+	favoritesHandler := handlers.NewFavoritesHandler(database)
 
 	// Profile endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile", profileHandler.HandleCreateProfile)
@@ -214,6 +216,18 @@ func main() {
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/arrival", arrivalHandler.HandleReportArrival)
 	mux.HandleFunc("GET "+cfg.APIBasePath+"/location/{locationId}/arrivals", arrivalHandler.HandleGetRecentArrivals)
 	mux.HandleFunc("GET "+cfg.APIBasePath+"/location/{locationId}/arrivals/stream", arrivalHandler.HandleArrivalStream)
+
+	// Loyalty program endpoints (shop mode)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/business/{businessId}/loyalty-program", loyaltyHandler.HandleCreateLoyaltyProgram)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/business/{businessId}/loyalty-program", loyaltyHandler.HandleGetLoyaltyProgram)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/business/{businessId}/loyalty-program", loyaltyHandler.HandleUpdateLoyaltyProgram)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/customer/{customerId}/loyalty-memberships", loyaltyHandler.HandleGetCustomerMemberships)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/customer/{customerId}/loyalty-membership/{businessId}", loyaltyHandler.HandleGetCustomerMembership)
+
+	// Favorites endpoints (shop mode)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/customer/{customerId}/favorites", favoritesHandler.HandleAddFavorite)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/customer/{customerId}/favorites/{itemId}", favoritesHandler.HandleRemoveFavorite)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/customer/{customerId}/favorites", favoritesHandler.HandleGetFavorites)
 
 	// ==========================================================================
 	// Integration endpoints — External service control
@@ -385,6 +399,16 @@ func main() {
 	log.Printf("   - POST   %s/arrival - Report arrival event (customer device)", cfg.APIBasePath)
 	log.Printf("   - GET    %s/location/{id}/arrivals - Get recent arrivals", cfg.APIBasePath)
 	log.Printf("   - GET    %s/location/{id}/arrivals/stream - SSE stream for kiosk", cfg.APIBasePath)
+	log.Printf("  Loyalty Program (Shop Mode):")
+	log.Printf("   - POST   %s/business/{id}/loyalty-program - Create loyalty program", cfg.APIBasePath)
+	log.Printf("   - GET    %s/business/{id}/loyalty-program - Get loyalty program", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/business/{id}/loyalty-program - Update loyalty program", cfg.APIBasePath)
+	log.Printf("   - GET    %s/customer/{id}/loyalty-memberships - List customer memberships", cfg.APIBasePath)
+	log.Printf("   - GET    %s/customer/{cid}/loyalty-membership/{bid} - Get membership (auto-create)", cfg.APIBasePath)
+	log.Printf("  Favorites (Shop Mode):")
+	log.Printf("   - POST   %s/customer/{id}/favorites - Add item to favorites", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/customer/{cid}/favorites/{itemId} - Remove from favorites", cfg.APIBasePath)
+	log.Printf("   - GET    %s/customer/{id}/favorites - List favorites (with full item details)", cfg.APIBasePath)
 	log.Printf("  Integrations:")
 	log.Printf("   - POST %s/lightbulb/toggle - Toggle lightbulb state", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)
