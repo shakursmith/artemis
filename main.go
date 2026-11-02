@@ -78,6 +78,7 @@ func main() {
 	menuTemplateHandler := handlers.NewMenuTemplateHandler(database)
 	menuOptionHandler := handlers.NewMenuOptionHandler(database)
 	roomMenuHandler := handlers.NewRoomMenuHandler(database)
+	productCatalogHandler := handlers.NewProductCatalogHandler(database)
 
 	// Profile endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile", profileHandler.HandleCreateProfile)
@@ -156,6 +157,48 @@ func main() {
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/room/{roomId}/menu/assign", roomMenuHandler.HandleAssignMenuOption)
 	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/room/{roomId}/menu/unassign", roomMenuHandler.HandleUnassignMenuOption)
 	mux.HandleFunc("PUT "+cfg.APIBasePath+"/room/{roomId}/menu/reorder", roomMenuHandler.HandleReorderMenuOptions)
+
+	// Product Catalog endpoints (food/drink menu system for shop mode)
+	// Menu management
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/business/{businessId}/product-menus", productCatalogHandler.HandleListProductMenus)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/business/{businessId}/product-menus/create", productCatalogHandler.HandleCreateProductMenu)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/product-menu/{menuId}", productCatalogHandler.HandleGetProductMenu)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/product-menu/{menuId}/full", productCatalogHandler.HandleGetFullMenu)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/product-menu/{menuId}", productCatalogHandler.HandleUpdateProductMenu)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/product-menu/{menuId}", productCatalogHandler.HandleDeleteProductMenu)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/business/{businessId}/product-menus/reorder", productCatalogHandler.HandleReorderProductMenus)
+	// Category management
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/product-menu/{menuId}/categories", productCatalogHandler.HandleListCategories)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/product-menu/{menuId}/categories", productCatalogHandler.HandleCreateCategory)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/category/{categoryId}", productCatalogHandler.HandleGetCategory)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/category/{categoryId}", productCatalogHandler.HandleUpdateCategory)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/category/{categoryId}", productCatalogHandler.HandleDeleteCategory)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/product-menu/{menuId}/categories/reorder", productCatalogHandler.HandleReorderCategories)
+	// Item management
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/category/{categoryId}/items", productCatalogHandler.HandleListItems)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/category/{categoryId}/items", productCatalogHandler.HandleCreateItem)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/item/{itemId}", productCatalogHandler.HandleGetItem)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/item/{itemId}", productCatalogHandler.HandleUpdateItem)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/item/{itemId}", productCatalogHandler.HandleDeleteItem)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/item/{itemId}/sold-out", productCatalogHandler.HandleToggleSoldOut)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/category/{categoryId}/items/reorder", productCatalogHandler.HandleReorderItems)
+	// Modifier Group management
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/item/{itemId}/modifier-groups", productCatalogHandler.HandleListModifierGroups)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/item/{itemId}/modifier-groups", productCatalogHandler.HandleCreateModifierGroup)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/modifier-group/{modifierGroupId}", productCatalogHandler.HandleGetModifierGroup)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/modifier-group/{modifierGroupId}", productCatalogHandler.HandleUpdateModifierGroup)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/modifier-group/{modifierGroupId}", productCatalogHandler.HandleDeleteModifierGroup)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/item/{itemId}/modifier-groups/reorder", productCatalogHandler.HandleReorderModifierGroups)
+	// Modifier management
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/modifier-group/{modifierGroupId}/modifiers", productCatalogHandler.HandleListModifiers)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/modifier-group/{modifierGroupId}/modifiers", productCatalogHandler.HandleCreateModifier)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/modifier/{modifierId}", productCatalogHandler.HandleGetModifier)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/modifier/{modifierId}", productCatalogHandler.HandleUpdateModifier)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/modifier/{modifierId}", productCatalogHandler.HandleDeleteModifier)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/modifier-group/{modifierGroupId}/modifiers/reorder", productCatalogHandler.HandleReorderModifiers)
+	// Image upload and bulk import
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/product-catalog/image-upload", productCatalogHandler.HandleImageUpload)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/business/{businessId}/product-menus/bulk-import", productCatalogHandler.HandleBulkMenuImport)
 
 	// ==========================================================================
 	// Integration endpoints — External service control
@@ -303,6 +346,19 @@ func main() {
 	log.Printf("   - POST   %s/room/{id}/menu/assign - Assign option to room menu", cfg.APIBasePath)
 	log.Printf("   - DELETE %s/room/{id}/menu/unassign - Unassign option from room menu", cfg.APIBasePath)
 	log.Printf("   - PUT    %s/room/{id}/menu/reorder - Reorder room menu options", cfg.APIBasePath)
+	log.Printf("  Product Catalog (Food/Drink Menu System):")
+	log.Printf("   - GET    %s/business/{id}/product-menus - List product menus", cfg.APIBasePath)
+	log.Printf("   - POST   %s/business/{id}/product-menus/create - Create product menu", cfg.APIBasePath)
+	log.Printf("   - GET    %s/product-menu/{id}/full - Get full menu with nested data", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/product-menu/{id} - Update product menu", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/product-menu/{id} - Delete product menu", cfg.APIBasePath)
+	log.Printf("   - POST   %s/product-menu/{id}/categories - Create category", cfg.APIBasePath)
+	log.Printf("   - POST   %s/category/{id}/items - Create item", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/item/{id}/sold-out - Toggle item sold-out status", cfg.APIBasePath)
+	log.Printf("   - POST   %s/item/{id}/modifier-groups - Create modifier group", cfg.APIBasePath)
+	log.Printf("   - POST   %s/modifier-group/{id}/modifiers - Create modifier", cfg.APIBasePath)
+	log.Printf("   - POST   %s/product-catalog/image-upload - Request image upload URL", cfg.APIBasePath)
+	log.Printf("   - POST   %s/business/{id}/product-menus/bulk-import - Bulk import menu", cfg.APIBasePath)
 	log.Printf("  Integrations:")
 	log.Printf("   - POST %s/lightbulb/toggle - Toggle lightbulb state", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)
