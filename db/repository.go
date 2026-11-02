@@ -464,6 +464,7 @@ func DeleteDevice(db *sql.DB, id string) error {
 
 // CreateBusiness inserts a new business with the given name and optional owner name.
 // A UUID is auto-generated for the business ID.
+// Branding fields (logo, color, hero image) are nullable and can be set later via UpdateBusiness.
 func CreateBusiness(db *sql.DB, name string, ownerName *string) (*Business, error) {
 	id := generateUUID()
 	now := time.Now().UTC()
@@ -490,8 +491,8 @@ func CreateBusiness(db *sql.DB, name string, ownerName *string) (*Business, erro
 func GetBusiness(db *sql.DB, id string) (*Business, error) {
 	var b Business
 	err := db.QueryRow(
-		"SELECT id, name, owner_name, created_at, updated_at FROM businesses WHERE id = ?", id,
-	).Scan(&b.ID, &b.Name, &b.OwnerName, &b.CreatedAt, &b.UpdatedAt)
+		"SELECT id, name, owner_name, welcome_message, website, phone, logo_url, accent_color, hero_image_url, created_at, updated_at FROM businesses WHERE id = ?", id,
+	).Scan(&b.ID, &b.Name, &b.OwnerName, &b.WelcomeMessage, &b.Website, &b.Phone, &b.LogoURL, &b.AccentColor, &b.HeroImageURL, &b.CreatedAt, &b.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("business not found: %s", id)
 	}
@@ -504,7 +505,7 @@ func GetBusiness(db *sql.DB, id string) (*Business, error) {
 // ListBusinesses returns all businesses in the database.
 // Mainly useful for development and debugging.
 func ListBusinesses(db *sql.DB) ([]Business, error) {
-	rows, err := db.Query("SELECT id, name, owner_name, created_at, updated_at FROM businesses ORDER BY created_at ASC")
+	rows, err := db.Query("SELECT id, name, owner_name, welcome_message, website, phone, logo_url, accent_color, hero_image_url, created_at, updated_at FROM businesses ORDER BY created_at ASC")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list businesses: %w", err)
 	}
@@ -513,7 +514,7 @@ func ListBusinesses(db *sql.DB) ([]Business, error) {
 	var businesses []Business
 	for rows.Next() {
 		var b Business
-		if err := rows.Scan(&b.ID, &b.Name, &b.OwnerName, &b.CreatedAt, &b.UpdatedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.Name, &b.OwnerName, &b.WelcomeMessage, &b.Website, &b.Phone, &b.LogoURL, &b.AccentColor, &b.HeroImageURL, &b.CreatedAt, &b.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan business row: %w", err)
 		}
 		businesses = append(businesses, b)
@@ -521,12 +522,14 @@ func ListBusinesses(db *sql.DB) ([]Business, error) {
 	return businesses, rows.Err()
 }
 
-// UpdateBusiness changes the name and owner name of an existing business and bumps updated_at.
-func UpdateBusiness(db *sql.DB, id string, name string, ownerName *string) (*Business, error) {
+// UpdateBusiness changes the name, owner name, and branding fields of an existing business.
+// All fields are updated together; use nil for optional fields to leave them unchanged would require
+// a different approach, but for simplicity we update all fields as provided in the contract.
+func UpdateBusiness(db *sql.DB, id string, name string, ownerName *string, welcomeMessage *string, website *string, phone *string, logoURL *string, accentColor *string, heroImageURL *string) (*Business, error) {
 	now := time.Now().UTC()
 	result, err := db.Exec(
-		"UPDATE businesses SET name = ?, owner_name = ?, updated_at = ? WHERE id = ?",
-		name, ownerName, now, id,
+		"UPDATE businesses SET name = ?, owner_name = ?, welcome_message = ?, website = ?, phone = ?, logo_url = ?, accent_color = ?, hero_image_url = ?, updated_at = ? WHERE id = ?",
+		name, ownerName, welcomeMessage, website, phone, logoURL, accentColor, heroImageURL, now, id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update business: %w", err)
@@ -585,8 +588,8 @@ func CreateLocation(db *sql.DB, businessID, name string, address *string) (*Loca
 func GetLocation(db *sql.DB, id string) (*Location, error) {
 	var l Location
 	err := db.QueryRow(
-		"SELECT id, business_id, name, address, metadata, created_at, updated_at FROM locations WHERE id = ?", id,
-	).Scan(&l.ID, &l.BusinessID, &l.Name, &l.Address, &l.Metadata, &l.CreatedAt, &l.UpdatedAt)
+		"SELECT id, business_id, name, address, metadata, street, street2, city, state, postal_code, country, latitude, longitude, timezone, opening_hours, special_hours, created_at, updated_at FROM locations WHERE id = ?", id,
+	).Scan(&l.ID, &l.BusinessID, &l.Name, &l.Address, &l.Metadata, &l.Street, &l.Street2, &l.City, &l.State, &l.PostalCode, &l.Country, &l.Latitude, &l.Longitude, &l.Timezone, &l.OpeningHours, &l.SpecialHours, &l.CreatedAt, &l.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("location not found: %s", id)
 	}
@@ -599,7 +602,7 @@ func GetLocation(db *sql.DB, id string) (*Location, error) {
 // ListLocationsByBusiness returns all locations belonging to a business, ordered by creation time.
 func ListLocationsByBusiness(db *sql.DB, businessID string) ([]Location, error) {
 	rows, err := db.Query(
-		"SELECT id, business_id, name, address, metadata, created_at, updated_at FROM locations WHERE business_id = ? ORDER BY created_at ASC",
+		"SELECT id, business_id, name, address, metadata, street, street2, city, state, postal_code, country, latitude, longitude, timezone, opening_hours, special_hours, created_at, updated_at FROM locations WHERE business_id = ? ORDER BY created_at ASC",
 		businessID,
 	)
 	if err != nil {
@@ -610,7 +613,7 @@ func ListLocationsByBusiness(db *sql.DB, businessID string) ([]Location, error) 
 	var locations []Location
 	for rows.Next() {
 		var l Location
-		if err := rows.Scan(&l.ID, &l.BusinessID, &l.Name, &l.Address, &l.Metadata, &l.CreatedAt, &l.UpdatedAt); err != nil {
+		if err := rows.Scan(&l.ID, &l.BusinessID, &l.Name, &l.Address, &l.Metadata, &l.Street, &l.Street2, &l.City, &l.State, &l.PostalCode, &l.Country, &l.Latitude, &l.Longitude, &l.Timezone, &l.OpeningHours, &l.SpecialHours, &l.CreatedAt, &l.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan location row: %w", err)
 		}
 		locations = append(locations, l)
@@ -618,12 +621,13 @@ func ListLocationsByBusiness(db *sql.DB, businessID string) ([]Location, error) 
 	return locations, rows.Err()
 }
 
-// UpdateLocation changes a location's name and address, bumping updated_at.
-func UpdateLocation(db *sql.DB, id, name string, address *string) (*Location, error) {
+// UpdateLocation changes a location's name, structured address fields, timezone, and hours.
+// All fields are updated together as provided in the contract.
+func UpdateLocation(db *sql.DB, id, name string, street, street2, city, state, postalCode, country *string, latitude, longitude *float64, timezone, openingHours, specialHours *string) (*Location, error) {
 	now := time.Now().UTC()
 	result, err := db.Exec(
-		"UPDATE locations SET name = ?, address = ?, updated_at = ? WHERE id = ?",
-		name, address, now, id,
+		"UPDATE locations SET name = ?, street = ?, street2 = ?, city = ?, state = ?, postal_code = ?, country = ?, latitude = ?, longitude = ?, timezone = ?, opening_hours = ?, special_hours = ?, updated_at = ? WHERE id = ?",
+		name, street, street2, city, state, postalCode, country, latitude, longitude, timezone, openingHours, specialHours, now, id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update location: %w", err)

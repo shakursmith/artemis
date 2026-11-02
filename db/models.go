@@ -51,25 +51,46 @@ type Device struct {
 // Business represents a business entity in shop mode.
 // This is the equivalent of Profile for commercial/retail use cases.
 // A business can have multiple locations (for chains/franchises).
+// Includes branding fields (logo, accent color, hero image) shared across all locations.
 type Business struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	OwnerName *string   `json:"ownerName,omitempty"` // optional shop manager/owner name
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	OwnerName      *string   `json:"ownerName,omitempty"`      // optional shop manager/owner name
+	WelcomeMessage *string   `json:"welcomeMessage,omitempty"` // short friendly message from owner to customers (max 500 chars)
+	Website        *string   `json:"website,omitempty"`        // business website URL
+	Phone          *string   `json:"phone,omitempty"`          // business contact phone (E.164 format recommended)
+	LogoURL        *string   `json:"logoUrl,omitempty"`        // URL to business logo image
+	AccentColor    *string   `json:"accentColor,omitempty"`    // brand accent color in hex format (#RRGGBB)
+	HeroImageURL   *string   `json:"heroImageUrl,omitempty"`   // URL to hero/banner image for the business
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
 // Location represents a physical location belonging to a business.
 // For multi-location businesses (e.g. "Downtown Store", "Airport Branch").
 // Each location can have multiple rooms with beacon configurations.
+// Includes structured address fields with geocoding, timezone, and opening hours.
 type Location struct {
-	ID         string    `json:"id"`
-	BusinessID string    `json:"businessId"`
-	Name       string    `json:"name"`
-	Address    *string   `json:"address,omitempty"`  // optional physical address
-	Metadata   *string   `json:"metadata,omitempty"` // JSON blob for location-specific config
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	ID           string    `json:"id"`
+	BusinessID   string    `json:"businessId"`
+	Name         string    `json:"name"`
+	Address      *string   `json:"address,omitempty"`  // DEPRECATED: use structured address fields instead
+	Metadata     *string   `json:"metadata,omitempty"` // JSON blob for location-specific config
+	// Structured address fields for geocoding and display
+	Street       *string   `json:"street,omitempty"`
+	Street2      *string   `json:"street2,omitempty"`       // suite, unit, etc.
+	City         *string   `json:"city,omitempty"`
+	State        *string   `json:"state,omitempty"`         // state or province code
+	PostalCode   *string   `json:"postalCode,omitempty"`
+	Country      *string   `json:"country,omitempty"`       // ISO 3166-1 alpha-2 country code
+	Latitude     *float64  `json:"latitude,omitempty"`      // -90 to 90
+	Longitude    *float64  `json:"longitude,omitempty"`     // -180 to 180
+	// Timezone and hours for isOpenNow computation
+	Timezone      *string   `json:"timezone,omitempty"`      // IANA timezone identifier (e.g. "America/Los_Angeles")
+	OpeningHours  *string   `json:"openingHours,omitempty"`  // JSON blob following OpeningHours schema
+	SpecialHours  *string   `json:"specialHours,omitempty"`  // JSON array following SpecialHours schema
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 // RoomTrigger represents an automated workflow triggered by beacon events.
@@ -156,4 +177,41 @@ type WiFiData struct {
 type URLData struct {
 	URL   string `json:"url"`
 	Title string `json:"title,omitempty"` // optional display title
+}
+
+// OpeningHours represents weekly opening hours with support for multiple ranges per day.
+// This structure is stored as JSON in the Location.OpeningHours field.
+// Each day can have multiple time ranges (e.g., for split shifts like breakfast and dinner).
+// A null day or empty ranges array means the location is closed all day.
+type OpeningHours struct {
+	Monday    *DayHours `json:"monday,omitempty"`
+	Tuesday   *DayHours `json:"tuesday,omitempty"`
+	Wednesday *DayHours `json:"wednesday,omitempty"`
+	Thursday  *DayHours `json:"thursday,omitempty"`
+	Friday    *DayHours `json:"friday,omitempty"`
+	Saturday  *DayHours `json:"saturday,omitempty"`
+	Sunday    *DayHours `json:"sunday,omitempty"`
+}
+
+// DayHours represents opening hours for a single day.
+// Null or empty ranges means closed all day.
+// Multiple ranges support split shifts (e.g., 07:00-11:00 and 17:00-22:00).
+type DayHours struct {
+	Ranges []TimeRange `json:"ranges"` // empty array = closed all day
+}
+
+// TimeRange represents a single continuous open time range.
+// Times are in 24-hour HH:MM format (e.g., "09:00", "21:00").
+type TimeRange struct {
+	Open  string `json:"open"`  // opening time in HH:MM format
+	Close string `json:"close"` // closing time in HH:MM format
+}
+
+// SpecialHours represents special hours override for holidays or events.
+// These override regular opening hours for specific dates.
+// This structure is stored as a JSON array in the Location.SpecialHours field.
+type SpecialHours struct {
+	Date   string    `json:"date"`   // date in YYYY-MM-DD format
+	Reason string    `json:"reason"` // reason for special hours (e.g., "Christmas Day")
+	Hours  *DayHours `json:"hours"`  // hours for this day (null means closed all day)
 }
