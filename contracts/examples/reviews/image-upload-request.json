@@ -1,0 +1,24 @@
+{
+  "description": "Example request for a signed URL to upload a review photo",
+  "request": {
+    "method": "POST",
+    "path": "/api/reviews/image-upload",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer <token>"
+    },
+    "body": {
+      "filename": "taco-plate.jpg",
+      "contentType": "image/jpeg",
+      "sizeBytes": 524288
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "uploadUrl": "https://storage.example.com/bucket/reviews/a1b2c3d4-taco-plate.jpg?signature=abc123def456...",
+      "publicUrl": "https://cdn.example.com/reviews/a1b2c3d4-taco-plate.jpg",
+      "expiresAt": "2024-11-01T19:32:45Z"
+    }
+  }
+}

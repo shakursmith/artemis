@@ -1,0 +1,782 @@
+openapi: 3.0.0
+info:
+  title: Artemis Reviews and Ratings API
+  version: 1.0.0
+  description: |
+    API contract for customer reviews and ratings. Reviews belong to a business
+    (not individual products), as food truck and market stall reviews are typically
+    about the overall experience. Product-level reviews are explicitly out of scope.
+
+    ## Review Scope
+
+    **Per-business reviews only:** Customers rate and review the business as a whole.
+    This aligns with the typical experience at food trucks, market stalls, and similar
+    small food businesses where the quality of service, food, and atmosphere are
+    evaluated holistically rather than item-by-item.
+
+    **Product-level reviews are out of scope.** If product-specific feedback becomes
+    necessary in the future, it would require a separate contract and implementation.
+
+    ## Business Reply
+
+    Businesses can reply to reviews. Any business admin can add, update, or delete
+    a reply for flexibility in customer engagement. Each review can have at most
+    one reply from the business.
+
+    ## Moderation
+
+    Business admins can flag reviews as inappropriate, which sets a flagged boolean
+    and timestamp. Flagged reviews remain visible but are marked. Auto-hiding or
+    approval workflows are future work.
+
+    ## Photo Uploads
+
+    Review photos use signed upload URLs, matching the approach in the product
+    catalog contract. This keeps uploads out of the API request path, allows
+    direct client-to-storage uploads, reduces backend bandwidth, and follows
+    cloud storage best practices. The backend generates a short-lived signed URL
+    that grants temporary write permission.
+
+servers:
+  - url: /api
+    description: Default API base path (configurable via API_BASE_PATH env var)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Optional for now, reserved for future use.
+        Once authentication is implemented, this header will be required.
+        Endpoints will return 401 Unauthorized if the token is missing or invalid.
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+      required:
+        - error
+      example:
+        error: "Review not found"
+
+    # ===========================================================================
+    # Core Models
+    # ===========================================================================
+
+    Review:
+      type: object
+      description: |
+        A customer review of a business. Includes a star rating (1-5), optional
+        review text, optional photo URLs, and timestamps. The business can reply
+        to the review, and the business can flag the review as inappropriate.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique review identifier (UUID v4)
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        customerId:
+          type: string
+          format: uuid
+          description: Customer who wrote the review
+          example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        businessId:
+          type: string
+          format: uuid
+          description: Business being reviewed
+          example: "c3d4e5f6-a7b8-9012-cdef-123456789012"
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Star rating (1-5)
+          example: 4
+        reviewText:
+          type: string
+          description: Optional review text
+          example: "Great food and friendly service!"
+        photoUrls:
+          type: array
+          description: Optional array of photo URLs
+          items:
+            type: string
+            format: uri
+          example: ["https://cdn.example.com/reviews/photo1.jpg"]
+        businessReply:
+          type: object
+          description: Optional reply from the business
+          properties:
+            replyText:
+              type: string
+              description: Business reply text
+              example: "Thank you for your kind words!"
+            repliedAt:
+              type: string
+              format: date-time
+              description: ISO 8601 timestamp of when reply was created
+              example: "2024-11-02T10:15:30Z"
+            repliedBy:
+              type: string
+              format: uuid
+              description: Admin who replied (any business admin can reply)
+              example: "d4e5f6a7-b8c9-0123-def1-234567890123"
+          required:
+            - replyText
+            - repliedAt
+            - repliedBy
+        flagged:
+          type: boolean
+          description: Whether this review has been flagged as inappropriate
+          example: false
+        flaggedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of when review was flagged (null if not flagged)
+          example: "2024-11-03T14:20:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of creation
+          example: "2024-11-01T18:32:45Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of last update
+          example: "2024-11-01T18:32:45Z"
+      required:
+        - id
+        - customerId
+        - businessId
+        - rating
+        - flagged
+        - createdAt
+        - updatedAt
+
+    ReviewListResponse:
+      type: object
+      description: Paginated list of reviews
+      properties:
+        data:
+          type: array
+          description: Array of reviews
+          items:
+            $ref: '#/components/schemas/Review'
+        pagination:
+          type: object
+          description: Pagination metadata
+          properties:
+            offset:
+              type: integer
+              description: Number of items skipped
+              example: 0
+            limit:
+              type: integer
+              description: Maximum number of items per page
+              example: 50
+            total:
+              type: integer
+              description: Total number of reviews matching the query
+              example: 127
+          required:
+            - offset
+            - limit
+            - total
+      required:
+        - data
+        - pagination
+
+    # ===========================================================================
+    # Request Models
+    # ===========================================================================
+
+    CreateReviewRequest:
+      type: object
+      description: Request to create a new review
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Star rating (1-5)
+          example: 5
+        reviewText:
+          type: string
+          description: Optional review text
+          example: "Amazing tacos! Will definitely come back."
+        photoUrls:
+          type: array
+          description: Optional array of photo URLs (uploaded via signed URL endpoint)
+          items:
+            type: string
+            format: uri
+          example: ["https://cdn.example.com/reviews/taco-photo.jpg"]
+      required:
+        - rating
+
+    UpdateReviewRequest:
+      type: object
+      description: |
+        Request to update an existing review. Only the customer who created the
+        review can update it. Rating cannot be changed after creation to prevent
+        gaming. Only reviewText and photoUrls can be updated.
+      properties:
+        reviewText:
+          type: string
+          description: Updated review text
+          example: "Amazing tacos and great salsa! Will definitely come back."
+        photoUrls:
+          type: array
+          description: Updated array of photo URLs
+          items:
+            type: string
+            format: uri
+          example: ["https://cdn.example.com/reviews/taco-photo.jpg", "https://cdn.example.com/reviews/salsa-photo.jpg"]
+      required:
+        - reviewText
+        - photoUrls
+
+    AddBusinessReplyRequest:
+      type: object
+      description: Request to add or update a business reply to a review
+      properties:
+        replyText:
+          type: string
+          description: Business reply text
+          example: "Thank you for your feedback! We're glad you enjoyed our tacos."
+      required:
+        - replyText
+
+    FlagReviewRequest:
+      type: object
+      description: |
+        Request to flag a review as inappropriate. Sets flagged=true and records
+        a timestamp. Flagged reviews remain visible but are marked. No auto-hiding
+        or approval workflow (future work).
+      properties:
+        reason:
+          type: string
+          description: Optional reason for flagging (for internal tracking)
+          example: "Spam or irrelevant content"
+
+    ImageUploadRequest:
+      type: object
+      description: |
+        Request for a signed upload URL for review photos. Matches the approach
+        used in the product catalog contract. The client will receive a pre-signed
+        URL to upload directly to cloud storage (S3, GCS, etc.), then include
+        the final URL in the review's photoUrls array.
+
+        **Why signed URLs:** Keeps image uploads out of the API request path,
+        allows direct client-to-storage uploads, reduces backend bandwidth,
+        and follows cloud storage best practices.
+      properties:
+        filename:
+          type: string
+          description: Original filename with extension
+          example: "taco-photo.jpg"
+        contentType:
+          type: string
+          description: MIME type of the image
+          example: "image/jpeg"
+        sizeBytes:
+          type: integer
+          description: File size in bytes (for validation)
+          example: 524288
+      required:
+        - filename
+        - contentType
+        - sizeBytes
+
+    ImageUploadResponse:
+      type: object
+      description: Response with signed URL for direct upload
+      properties:
+        uploadUrl:
+          type: string
+          format: uri
+          description: Pre-signed URL for uploading the image
+          example: "https://storage.example.com/bucket/reviews/uuid.jpg?signature=..."
+        publicUrl:
+          type: string
+          format: uri
+          description: Public URL to use in photoUrls after upload completes
+          example: "https://cdn.example.com/reviews/uuid.jpg"
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the signed upload URL expires
+          example: "2024-11-01T19:32:45Z"
+      required:
+        - uploadUrl
+        - publicUrl
+        - expiresAt
+
+paths:
+  # =============================================================================
+  # Customer Review Endpoints
+  # =============================================================================
+
+  /business/{businessId}/reviews:
+    post:
+      summary: Create a review for a business
+      description: |
+        Creates a new review for the business. Requires a rating (1-5) and
+        optionally includes review text and photo URLs.
+      tags:
+        - Customer
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '201':
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          description: Invalid request (e.g., rating out of range)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: List reviews for a business
+      description: |
+        Returns a paginated list of reviews for the business. Supports filtering
+        by minimum rating and sorts by most recent first. Uses the pagination
+        convention from conventions.md (limit, offset, total).
+      tags:
+        - Customer
+      parameters:
+        - name: businessId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Business ID
+        - name: minRating
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+          description: Optional filter for minimum rating (e.g., 4 for 4-5 star reviews)
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+          description: Maximum number of reviews per page
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Number of reviews to skip
+      responses:
+        '200':
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewListResponse'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /customer/{customerId}/reviews:
+    get:
+      summary: List reviews by a customer
+      description: |
+        Returns all reviews created by the customer. Not paginated, as customers
+        are unlikely to create enough reviews to need pagination.
+      tags:
+        - Customer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Customer ID
+      responses:
+        '200':
+          description: List of customer reviews (no wrapper, direct array)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Review'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /review/{reviewId}:
+    get:
+      summary: Get a single review
+      description: Returns review details including business reply if present
+      tags:
+        - Customer
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Review ID
+      responses:
+        '200':
+          description: Review details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '404':
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update own review
+      description: |
+        Updates the customer's own review. Only reviewText and photoUrls can be
+        updated. Rating cannot be changed after creation to prevent gaming.
+      tags:
+        - Customer
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Review ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReviewRequest'
+      responses:
+        '200':
+          description: Review updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete own review
+      description: Deletes the customer's own review
+      tags:
+        - Customer
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Review ID
+      responses:
+        '204':
+          description: Review deleted
+        '404':
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Business Reply Endpoints
+  # =============================================================================
+
+  /review/{reviewId}/reply:
+    put:
+      summary: Add or update a business reply
+      description: |
+        Adds or updates the business reply to a review. Any business admin can
+        reply for flexibility in customer engagement. Each review can have at
+        most one reply from the business.
+      tags:
+        - Admin
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Review ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddBusinessReplyRequest'
+      responses:
+        '200':
+          description: Reply added or updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete own business reply
+      description: Deletes the business reply to a review
+      tags:
+        - Admin
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Review ID
+      responses:
+        '204':
+          description: Reply deleted
+        '404':
+          description: Review or reply not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Moderation Endpoints
+  # =============================================================================
+
+  /review/{reviewId}/flag:
+    put:
+      summary: Flag a review as inappropriate
+      description: |
+        Flags a review as inappropriate, which sets flagged=true and records a
+        timestamp. Flagged reviews remain visible but are marked. No auto-hiding
+        or approval workflow; that is future work.
+      tags:
+        - Admin
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Review ID
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlagReviewRequest'
+      responses:
+        '200':
+          description: Review flagged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =============================================================================
+  # Image Upload
+  # =============================================================================
+
+  /reviews/image-upload:
+    post:
+      summary: Request a signed URL for review photo upload
+      description: |
+        Returns a pre-signed URL for uploading a review photo directly to cloud
+        storage. The client uploads the image to the signed URL, then includes
+        the public URL in the review's photoUrls array when creating or updating
+        a review.
+      tags:
+        - Customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageUploadRequest'
+      responses:
+        '200':
+          description: Signed upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+# =============================================================================
+# Migration Notes
+# =============================================================================
+
+# New database tables required for this contract:
+#
+# 1. reviews table:
+#    - id (UUID, primary key)
+#    - customer_id (UUID, foreign key to customers table)
+#    - business_id (UUID, foreign key to businesses table)
+#    - rating (integer, 1-5)
+#    - review_text (text, nullable)
+#    - photo_urls (JSON array or separate table, nullable)
+#    - flagged (boolean, default false)
+#    - flagged_at (timestamp, nullable)
+#    - created_at (timestamp)
+#    - updated_at (timestamp)
+#
+# 2. business_replies table (or embedded in reviews table):
+#    - Option A: Embed in reviews table:
+#      - reply_text (text, nullable)
+#      - replied_at (timestamp, nullable)
+#      - replied_by (UUID, nullable, foreign key to admins/users table)
+#
+#    - Option B: Separate table:
+#      - id (UUID, primary key)
+#      - review_id (UUID, foreign key to reviews table, unique constraint)
+#      - reply_text (text)
+#      - replied_at (timestamp)
+#      - replied_by (UUID, foreign key to admins/users table)
+#
+# Recommendation: Option A (embed in reviews table) for simplicity, as each
+# review has at most one reply. This avoids an extra join and keeps the data
+# model simpler.
+#
+# Indexes recommended:
+# - reviews.business_id (for listing reviews by business)
+# - reviews.customer_id (for listing reviews by customer)
+# - reviews.created_at (for sorting by recency)
+# - reviews.rating (for filtering by minimum rating)
