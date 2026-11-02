@@ -431,3 +431,81 @@ type Favorite struct {
 	BusinessID  string    `json:"businessId"`  // denormalized for filtering
 	FavoritedAt time.Time `json:"favoritedAt"` // timestamp when favorited (updated on re-add)
 }
+
+// =============================================================================
+// Cart and Order Models
+// =============================================================================
+
+// Cart represents a shopping cart for a customer at a specific business.
+// A customer can have only one active cart per business at a time.
+// When a new cart is created for the same customer and business, the existing cart is reused.
+type Cart struct {
+	ID         string    `json:"id"`
+	CustomerID string    `json:"customerId"`
+	BusinessID string    `json:"businessId"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+}
+
+// CartLineItem represents a line item in a cart.
+// References a product item from the product catalog and includes quantity and selected modifiers.
+// Modifiers are stored as a separate relationship in the cart_line_item_modifiers table.
+type CartLineItem struct {
+	ID        string    `json:"id"`
+	CartID    string    `json:"cartId"`
+	ItemID    string    `json:"itemId"`
+	Quantity  int       `json:"quantity"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// SelectedModifier represents a modifier selected for a cart line item.
+// This is used in API responses to nest modifiers within cart line items.
+type SelectedModifier struct {
+	ModifierID string `json:"modifierId"`
+}
+
+// Order represents an order created from a cart.
+// Line items are snapshotted at order creation time (not references) to preserve
+// pricing even if the menu changes later.
+type Order struct {
+	ID                   string     `json:"id"`
+	CustomerID           string     `json:"customerId"`
+	BusinessID           string     `json:"businessId"`
+	LocationID           string     `json:"locationId"`
+	OrderType            string     `json:"orderType"`            // "order-ahead" or "asap"
+	RequestedPickupTime  *time.Time `json:"requestedPickupTime,omitempty"` // only for order-ahead
+	Status               string     `json:"status"`               // pending, confirmed, preparing, ready, completed, cancelled
+	SubtotalMinorUnits   int        `json:"subtotalMinorUnits"`
+	TaxMinorUnits        int        `json:"taxMinorUnits"`
+	TotalMinorUnits      int        `json:"totalMinorUnits"`
+	CurrencyCode         string     `json:"currencyCode"`
+	PaymentProvider      string     `json:"paymentProvider"`      // stripe, square, stub
+	PaymentIntentID      string     `json:"paymentIntentId"`
+	PaymentStatus        string     `json:"paymentStatus"`        // unpaid, authorized, captured, failed, refunded
+	CreatedAt            time.Time  `json:"createdAt"`
+	UpdatedAt            time.Time  `json:"updatedAt"`
+}
+
+// OrderLineItem represents a line item in an order.
+// Contains a snapshot of the item data at order time (name, price, modifiers)
+// rather than references to the catalog, since menu items may change over time.
+type OrderLineItem struct {
+	ID                     string    `json:"id"`
+	OrderID                string    `json:"orderId"`
+	ItemID                 string    `json:"itemId"`                 // original catalog item ID (for reference only)
+	ItemName               string    `json:"itemName"`               // snapshot of item name
+	ItemPriceMinorUnits    int       `json:"itemPriceMinorUnits"`    // snapshot of base price
+	Quantity               int       `json:"quantity"`
+	LineItemTotalMinorUnits int      `json:"lineItemTotalMinorUnits"` // (base price + modifiers) * quantity
+	CreatedAt              time.Time `json:"createdAt"`
+}
+
+// OrderModifier represents a modifier snapshot in an order line item.
+// Contains name and price adjustment at order time rather than a reference
+// to the catalog, since modifiers may change over time.
+type OrderModifier struct {
+	ModifierID                string `json:"modifierId"`                // original catalog modifier ID (for reference only)
+	ModifierName              string `json:"modifierName"`              // snapshot of modifier name
+	PriceAdjustmentMinorUnits int    `json:"priceAdjustmentMinorUnits"` // snapshot of price adjustment
+}
