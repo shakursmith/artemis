@@ -70,13 +70,42 @@ type addressRequest struct {
 	Longitude  *float64 `json:"longitude,omitempty"`
 }
 
+// flexibleAddress wraps either a string or an addressRequest to support both formats
+type flexibleAddress struct {
+	IsString   bool
+	StringAddr string
+	StructAddr *addressRequest
+}
+
+// UnmarshalJSON implements custom unmarshaling for the address field
+// to handle both string and object formats
+func (f *flexibleAddress) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as a string first
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		f.IsString = true
+		f.StringAddr = str
+		return nil
+	}
+
+	// If not a string, try to unmarshal as structured address
+	var addr addressRequest
+	if err := json.Unmarshal(data, &addr); err != nil {
+		return err
+	}
+	f.IsString = false
+	f.StructAddr = &addr
+	return nil
+}
+
 // updateLocationRequest is the JSON body for PUT /api/location/{id}
+// The address field can be either a string (for simple updates) or a structured object (for full updates).
 type updateLocationRequest struct {
-	Name         string          `json:"name"`
-	Address      *addressRequest `json:"address,omitempty"`
-	Timezone     *string         `json:"timezone,omitempty"`
-	OpeningHours interface{}     `json:"openingHours,omitempty"`
-	SpecialHours interface{}     `json:"specialHours,omitempty"`
+	Name         string           `json:"name"`
+	Address      *flexibleAddress `json:"address,omitempty"`
+	Timezone     *string          `json:"timezone,omitempty"`
+	OpeningHours interface{}      `json:"openingHours,omitempty"`
+	SpecialHours interface{}      `json:"specialHours,omitempty"`
 }
 
 // =============================================================================
@@ -272,32 +301,40 @@ func (h *LocationHandler) HandleUpdateLocation(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Extract structured address fields
+	// Extract address fields - support both simple string and structured formats
 	var street, street2, city, state, postalCode, country *string
 	var latitude, longitude *float64
-	if req.Address != nil {
-		// Validate required address fields
-		if req.Address.Street == "" || req.Address.City == "" || req.Address.State == "" || req.Address.PostalCode == "" || req.Address.Country == "" {
-			writeError(w, http.StatusBadRequest, "Address requires street, city, state, postalCode, and country")
-			return
-		}
-		street = &req.Address.Street
-		street2 = req.Address.Street2
-		city = &req.Address.City
-		state = &req.Address.State
-		postalCode = &req.Address.PostalCode
-		country = &req.Address.Country
-		latitude = req.Address.Latitude
-		longitude = req.Address.Longitude
 
-		// Validate latitude/longitude ranges if provided
-		if latitude != nil && (*latitude < -90 || *latitude > 90) {
-			writeError(w, http.StatusBadRequest, "Latitude must be between -90 and 90")
-			return
-		}
-		if longitude != nil && (*longitude < -180 || *longitude > 180) {
-			writeError(w, http.StatusBadRequest, "Longitude must be between -180 and 180")
-			return
+	if req.Address != nil {
+		if req.Address.IsString {
+			// Simple string address provided (backward compatible)
+			// Store it in the street field, leave other address fields as nil
+			street = &req.Address.StringAddr
+		} else if req.Address.StructAddr != nil {
+			// Structured address object provided (preferred format)
+			// Validate required address fields
+			if req.Address.StructAddr.Street == "" || req.Address.StructAddr.City == "" || req.Address.StructAddr.State == "" || req.Address.StructAddr.PostalCode == "" || req.Address.StructAddr.Country == "" {
+				writeError(w, http.StatusBadRequest, "Address requires street, city, state, postalCode, and country")
+				return
+			}
+			street = &req.Address.StructAddr.Street
+			street2 = req.Address.StructAddr.Street2
+			city = &req.Address.StructAddr.City
+			state = &req.Address.StructAddr.State
+			postalCode = &req.Address.StructAddr.PostalCode
+			country = &req.Address.StructAddr.Country
+			latitude = req.Address.StructAddr.Latitude
+			longitude = req.Address.StructAddr.Longitude
+
+			// Validate latitude/longitude ranges if provided
+			if latitude != nil && (*latitude < -90 || *latitude > 90) {
+				writeError(w, http.StatusBadRequest, "Latitude must be between -90 and 90")
+				return
+			}
+			if longitude != nil && (*longitude < -180 || *longitude > 180) {
+				writeError(w, http.StatusBadRequest, "Longitude must be between -180 and 180")
+				return
+			}
 		}
 	}
 
