@@ -682,3 +682,56 @@ func TestUpdateLocation_MissingAddressRequiredFields(t *testing.T) {
 		t.Fatalf("expected status 400, got %d", w.Code)
 	}
 }
+
+// TestUpdateLocation_StringAddress tests the bug fix for ticket 028
+// where the frontend sometimes sends address as a plain string instead of a structured object.
+// This test verifies that sending a simple string address doesn't cause a JSON unmarshal error.
+func TestUpdateLocation_StringAddress(t *testing.T) {
+	h, database := setupTestLocationHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Chain Cafe", nil)
+	location, _ := db.CreateLocation(database, business.ID, "Downtown", nil)
+
+	// Update with simple string address (the bug scenario from ticket 028)
+	// Previously this would fail with: "json: cannot unmarshal string into Go struct field"
+	body := `{
+		"name": "Downtown Store",
+		"address": "123 Main St",
+		"openingHours": {
+			"monday": {
+				"ranges": [
+					{"open": "09:00", "close": "17:00"}
+				]
+			}
+		}
+	}`
+	req := httptest.NewRequest(http.MethodPut, "/api/location/"+location.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", location.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateLocation(w, req)
+
+	// The key test: this should now return 200 OK instead of 400 Bad Request
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp locationDetailResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Name != "Downtown Store" {
+		t.Errorf("expected name 'Downtown Store', got '%s'", resp.Name)
+	}
+	// When a simple string address is provided, it's stored in the street field only.
+	// Since other required fields (city, state, etc.) are not set, the address response
+	// will be nil according to the current logic (all fields must be present).
+	// This is acceptable behavior - the update succeeds without errors.
+
+	// Verify the update was successful by checking the database directly
+	updated, err := db.GetLocation(database, location.ID)
+	if err != nil {
+		t.Fatalf("failed to get updated location: %v", err)
+	}
+	if updated.Street == nil || *updated.Street != "123 Main St" {
+		t.Errorf("expected street to be '123 Main St', got %v", updated.Street)
+	}
+}
