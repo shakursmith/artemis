@@ -506,8 +506,8 @@ func CreateBusiness(db *sql.DB, name string, ownerName *string) (*Business, erro
 func GetBusiness(db *sql.DB, id string) (*Business, error) {
 	var b Business
 	err := db.QueryRow(
-		"SELECT id, name, owner_name, welcome_message, website, phone, logo_url, accent_color, hero_image_url, created_at, updated_at FROM businesses WHERE id = ?", id,
-	).Scan(&b.ID, &b.Name, &b.OwnerName, &b.WelcomeMessage, &b.Website, &b.Phone, &b.LogoURL, &b.AccentColor, &b.HeroImageURL, &b.CreatedAt, &b.UpdatedAt)
+		"SELECT id, name, owner_name, welcome_message, website, phone, logo_url, accent_color, hero_image_url, features_json, extras_json, created_at, updated_at FROM businesses WHERE id = ?", id,
+	).Scan(&b.ID, &b.Name, &b.OwnerName, &b.WelcomeMessage, &b.Website, &b.Phone, &b.LogoURL, &b.AccentColor, &b.HeroImageURL, &b.FeaturesJSON, &b.ExtrasJSON, &b.CreatedAt, &b.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("business not found: %s", id)
 	}
@@ -520,7 +520,7 @@ func GetBusiness(db *sql.DB, id string) (*Business, error) {
 // ListBusinesses returns all businesses in the database.
 // Mainly useful for development and debugging.
 func ListBusinesses(db *sql.DB) ([]Business, error) {
-	rows, err := db.Query("SELECT id, name, owner_name, welcome_message, website, phone, logo_url, accent_color, hero_image_url, created_at, updated_at FROM businesses ORDER BY created_at ASC")
+	rows, err := db.Query("SELECT id, name, owner_name, welcome_message, website, phone, logo_url, accent_color, hero_image_url, features_json, extras_json, created_at, updated_at FROM businesses ORDER BY created_at ASC")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list businesses: %w", err)
 	}
@@ -529,7 +529,7 @@ func ListBusinesses(db *sql.DB) ([]Business, error) {
 	var businesses []Business
 	for rows.Next() {
 		var b Business
-		if err := rows.Scan(&b.ID, &b.Name, &b.OwnerName, &b.WelcomeMessage, &b.Website, &b.Phone, &b.LogoURL, &b.AccentColor, &b.HeroImageURL, &b.CreatedAt, &b.UpdatedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.Name, &b.OwnerName, &b.WelcomeMessage, &b.Website, &b.Phone, &b.LogoURL, &b.AccentColor, &b.HeroImageURL, &b.FeaturesJSON, &b.ExtrasJSON, &b.CreatedAt, &b.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan business row: %w", err)
 		}
 		businesses = append(businesses, b)
@@ -603,8 +603,8 @@ func CreateLocation(db *sql.DB, businessID, name string, address *string) (*Loca
 func GetLocation(db *sql.DB, id string) (*Location, error) {
 	var l Location
 	err := db.QueryRow(
-		"SELECT id, business_id, name, address, metadata, street, street2, city, state, postal_code, country, latitude, longitude, timezone, opening_hours, special_hours, created_at, updated_at FROM locations WHERE id = ?", id,
-	).Scan(&l.ID, &l.BusinessID, &l.Name, &l.Address, &l.Metadata, &l.Street, &l.Street2, &l.City, &l.State, &l.PostalCode, &l.Country, &l.Latitude, &l.Longitude, &l.Timezone, &l.OpeningHours, &l.SpecialHours, &l.CreatedAt, &l.UpdatedAt)
+		"SELECT id, business_id, name, address, metadata, street, street2, city, state, postal_code, country, latitude, longitude, timezone, opening_hours, special_hours, order_modes_json, created_at, updated_at FROM locations WHERE id = ?", id,
+	).Scan(&l.ID, &l.BusinessID, &l.Name, &l.Address, &l.Metadata, &l.Street, &l.Street2, &l.City, &l.State, &l.PostalCode, &l.Country, &l.Latitude, &l.Longitude, &l.Timezone, &l.OpeningHours, &l.SpecialHours, &l.OrderModesJSON, &l.CreatedAt, &l.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("location not found: %s", id)
 	}
@@ -617,7 +617,7 @@ func GetLocation(db *sql.DB, id string) (*Location, error) {
 // ListLocationsByBusiness returns all locations belonging to a business, ordered by creation time.
 func ListLocationsByBusiness(db *sql.DB, businessID string) ([]Location, error) {
 	rows, err := db.Query(
-		"SELECT id, business_id, name, address, metadata, street, street2, city, state, postal_code, country, latitude, longitude, timezone, opening_hours, special_hours, created_at, updated_at FROM locations WHERE business_id = ? ORDER BY created_at ASC",
+		"SELECT id, business_id, name, address, metadata, street, street2, city, state, postal_code, country, latitude, longitude, timezone, opening_hours, special_hours, order_modes_json, created_at, updated_at FROM locations WHERE business_id = ? ORDER BY created_at ASC",
 		businessID,
 	)
 	if err != nil {
@@ -628,7 +628,7 @@ func ListLocationsByBusiness(db *sql.DB, businessID string) ([]Location, error) 
 	var locations []Location
 	for rows.Next() {
 		var l Location
-		if err := rows.Scan(&l.ID, &l.BusinessID, &l.Name, &l.Address, &l.Metadata, &l.Street, &l.Street2, &l.City, &l.State, &l.PostalCode, &l.Country, &l.Latitude, &l.Longitude, &l.Timezone, &l.OpeningHours, &l.SpecialHours, &l.CreatedAt, &l.UpdatedAt); err != nil {
+		if err := rows.Scan(&l.ID, &l.BusinessID, &l.Name, &l.Address, &l.Metadata, &l.Street, &l.Street2, &l.City, &l.State, &l.PostalCode, &l.Country, &l.Latitude, &l.Longitude, &l.Timezone, &l.OpeningHours, &l.SpecialHours, &l.OrderModesJSON, &l.CreatedAt, &l.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan location row: %w", err)
 		}
 		locations = append(locations, l)
@@ -1575,4 +1575,268 @@ func CreateItem(db *sql.DB, categoryID, name string, description *string, priceM
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}, nil
+}
+
+// =============================================================================
+// Shop Config Operations (ISE-003)
+// =============================================================================
+
+// GetShopConfig composes the full shop config response for a location.
+// It aggregates data from:
+//   - locations table: address, timezone, hours, order modes
+//   - businesses table: name, branding, features, extras
+//   - reviews table: average rating + total count
+//   - loyalty_programs table: program config
+//   - loyalty_memberships table: customer's stamp count (when customerId provided)
+//
+// The customerId parameter is optional. When provided, the response includes
+// the customer's current stamp count from the loyalty_memberships table.
+func GetShopConfig(db *sql.DB, locationID string, customerID *string) (*ShopConfig, error) {
+	// Step 1: Load the location (includes business_id for the join)
+	location, err := GetLocation(db, locationID)
+	if err != nil {
+		return nil, err // propagates "location not found" error
+	}
+
+	// Step 2: Load the parent business for branding and feature data
+	business, err := GetBusiness(db, location.BusinessID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load business for location %s: %w", locationID, err)
+	}
+
+	// Step 3: Compute isOpen and closesAt from location hours + timezone.
+	// Reuses the existing IsOpenNow logic from db/hours.go.
+	isOpen := IsOpenNow(location)
+	var closesAt *string
+	if isOpen {
+		// Compute the closing time for the current period
+		closesAt = getClosesAt(location)
+	}
+
+	// Step 4: Build the structured address if fields are present.
+	// The address is null if no street is configured (bare minimum field).
+	var address *ShopConfigAddress
+	if location.Street != nil {
+		address = &ShopConfigAddress{
+			Street:     *location.Street,
+			Street2:    location.Street2,
+			City:       derefString(location.City, ""),
+			State:      derefString(location.State, ""),
+			PostalCode: derefString(location.PostalCode, ""),
+			Country:    derefString(location.Country, ""),
+			Latitude:   location.Latitude,
+			Longitude:  location.Longitude,
+		}
+	}
+
+	// Step 5: Parse opening hours JSON for the response.
+	// We pass the parsed struct directly so the client gets structured hours.
+	var openingHours *OpeningHours
+	if location.OpeningHours != nil && *location.OpeningHours != "" {
+		var oh OpeningHours
+		if err := json.Unmarshal([]byte(*location.OpeningHours), &oh); err == nil {
+			openingHours = &oh
+		}
+	}
+
+	// Step 6: Parse feature flags from business JSON column.
+	// Defaults to all-enabled if the column is null or invalid JSON.
+	features := ShopConfigFeatures{
+		MenuEnabled:    true,
+		RewardsEnabled: true,
+		ReviewsEnabled: true,
+		CartEnabled:    true,
+	}
+	if business.FeaturesJSON != nil && *business.FeaturesJSON != "" {
+		_ = json.Unmarshal([]byte(*business.FeaturesJSON), &features)
+	}
+
+	// Step 7: Parse extras from business JSON column.
+	// Defaults to empty array if the column is null or invalid JSON.
+	var extras []ShopConfigExtra
+	if business.ExtrasJSON != nil && *business.ExtrasJSON != "" {
+		_ = json.Unmarshal([]byte(*business.ExtrasJSON), &extras)
+	}
+	if extras == nil {
+		extras = []ShopConfigExtra{}
+	}
+
+	// Step 8: Parse order modes from location JSON column.
+	// Defaults to ["pickup", "dineIn"] if the column is null or invalid JSON.
+	orderModes := []string{"pickup", "dineIn"}
+	if location.OrderModesJSON != nil && *location.OrderModesJSON != "" {
+		_ = json.Unmarshal([]byte(*location.OrderModesJSON), &orderModes)
+	}
+
+	// Step 9: Compute review summary — AVG(rating) and COUNT(*) from reviews table.
+	// Returns nil if no reviews exist for this business.
+	var reviewSummary *ShopConfigReviewSummary
+	var avgRating sql.NullFloat64
+	var totalReviews int
+	err = db.QueryRow(
+		"SELECT AVG(CAST(rating AS REAL)), COUNT(*) FROM reviews WHERE business_id = ?",
+		business.ID,
+	).Scan(&avgRating, &totalReviews)
+	if err == nil && totalReviews > 0 {
+		// Round average rating to one decimal place
+		rounded := float64(int(avgRating.Float64*10+0.5)) / 10.0
+		reviewSummary = &ShopConfigReviewSummary{
+			AverageRating: rounded,
+			TotalReviews:  totalReviews,
+		}
+	}
+
+	// Step 10: Build loyalty summary from loyalty_programs table.
+	// Returns nil if no loyalty program exists for this business.
+	var loyaltySummary *ShopConfigLoyaltySummary
+	var programID string
+	var rewardThreshold int
+	err = db.QueryRow(
+		"SELECT id, reward_threshold FROM loyalty_programs WHERE business_id = ?",
+		business.ID,
+	).Scan(&programID, &rewardThreshold)
+	if err == nil {
+		// A loyalty program exists for this business
+		loyaltySummary = &ShopConfigLoyaltySummary{
+			ProgramEnabled: true,
+			StampsRequired: &rewardThreshold,
+		}
+
+		// Step 11: If customerId is provided, look up their membership stamp count.
+		if customerID != nil && *customerID != "" {
+			var pointsBalance int
+			memberErr := db.QueryRow(
+				"SELECT points_balance FROM loyalty_memberships WHERE customer_id = ? AND business_id = ?",
+				*customerID, business.ID,
+			).Scan(&pointsBalance)
+			if memberErr == nil {
+				loyaltySummary.CurrentStamps = &pointsBalance
+			}
+			// If no membership found, currentStamps stays nil (expected behavior)
+		}
+	}
+	// If no loyalty program, loyaltySummary stays nil (expected behavior)
+
+	return &ShopConfig{
+		ShopID:         location.ID,
+		BusinessID:     business.ID,
+		BusinessName:   business.Name,
+		AccentColor:    business.AccentColor,
+		HeroImageURL:   business.HeroImageURL,
+		IsOpen:         isOpen,
+		ClosesAt:       closesAt,
+		Address:        address,
+		Phone:          business.Phone,
+		Website:        business.Website,
+		OpeningHours:   openingHours,
+		OrderModes:     orderModes,
+		Features:       features,
+		Extras:         extras,
+		ReviewSummary:  reviewSummary,
+		LoyaltySummary: loyaltySummary,
+	}, nil
+}
+
+// getClosesAt computes the next closing time for a location that is currently open.
+// Returns a human-readable time string like "6:00 PM" or nil if it can't be computed.
+// Uses the same timezone and special-hours logic as IsOpenNow.
+func getClosesAt(location *Location) *string {
+	// Determine the timezone
+	var loc *time.Location
+	if location.Timezone != nil && *location.Timezone != "" {
+		var err error
+		loc, err = time.LoadLocation(*location.Timezone)
+		if err != nil {
+			loc = time.UTC
+		}
+	} else {
+		loc = time.UTC
+	}
+
+	now := time.Now().In(loc)
+	currentDate := now.Format("2006-01-02")
+	currentWeekday := now.Weekday()
+	currentTime := now.Format("15:04")
+
+	// Check for special hours override for today
+	var dayHours *DayHours
+	foundSpecialHours := false
+	if location.SpecialHours != nil && *location.SpecialHours != "" {
+		var specialHours []SpecialHours
+		if err := json.Unmarshal([]byte(*location.SpecialHours), &specialHours); err == nil {
+			for _, sh := range specialHours {
+				if sh.Date == currentDate {
+					dayHours = sh.Hours
+					foundSpecialHours = true
+					break
+				}
+			}
+		}
+	}
+
+	// If no special hours for today, use regular opening hours
+	if !foundSpecialHours && location.OpeningHours != nil && *location.OpeningHours != "" {
+		var openingHours OpeningHours
+		if err := json.Unmarshal([]byte(*location.OpeningHours), &openingHours); err == nil {
+			switch currentWeekday {
+			case time.Monday:
+				dayHours = openingHours.Monday
+			case time.Tuesday:
+				dayHours = openingHours.Tuesday
+			case time.Wednesday:
+				dayHours = openingHours.Wednesday
+			case time.Thursday:
+				dayHours = openingHours.Thursday
+			case time.Friday:
+				dayHours = openingHours.Friday
+			case time.Saturday:
+				dayHours = openingHours.Saturday
+			case time.Sunday:
+				dayHours = openingHours.Sunday
+			}
+		}
+	}
+
+	if dayHours == nil || len(dayHours.Ranges) == 0 {
+		return nil
+	}
+
+	// Find the range that the current time falls within, and return its close time
+	for _, tr := range dayHours.Ranges {
+		if isTimeInRange(currentTime, tr.Open, tr.Close) {
+			// Parse the close time into a human-readable format (e.g., "6:00 PM")
+			formatted := formatTimeString(tr.Close)
+			return &formatted
+		}
+	}
+
+	return nil
+}
+
+// formatTimeString converts a 24-hour HH:MM string to a human-readable 12-hour
+// format like "6:00 PM". Used for the closesAt field in shop config responses.
+func formatTimeString(timeStr string) string {
+	var hours, minutes int
+	fmt.Sscanf(timeStr, "%d:%d", &hours, &minutes)
+
+	period := "AM"
+	displayHours := hours
+	if hours == 0 {
+		displayHours = 12
+	} else if hours == 12 {
+		period = "PM"
+	} else if hours > 12 {
+		displayHours = hours - 12
+		period = "PM"
+	}
+
+	return fmt.Sprintf("%d:%02d %s", displayHours, minutes, period)
+}
+
+// derefString dereferences a *string, returning the given default if nil.
+func derefString(s *string, def string) string {
+	if s == nil {
+		return def
+	}
+	return *s
 }
