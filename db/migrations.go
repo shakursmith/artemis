@@ -744,26 +744,15 @@ func migrateRoomTriggersForeignKey(db *sql.DB) error {
 }
 
 // seedSystemTemplates inserts the built-in system templates for menu options.
-// This is idempotent — it checks if templates already exist before inserting.
+// Uses INSERT OR IGNORE so it's safe to call on every startup — new templates
+// are added without affecting existing ones.
 func seedSystemTemplates(db *sql.DB) error {
-	// Check if system templates already exist
-	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM menu_option_templates WHERE is_system = 1").Scan(&count)
-	if err != nil {
-		return fmt.Errorf("failed to check for existing system templates: %w", err)
-	}
-
-	// If system templates already exist, skip seeding
-	if count > 0 {
-		return nil
-	}
-
 	log.Printf("🌱 Seeding system menu option templates...")
 
 	// WiFi template — allows customers to join the business's WiFi network
 	wifiSchema := `{"type":"object","properties":{"ssid":{"type":"string"},"password":{"type":"string"}},"required":["ssid","password"]}`
-	_, err = db.Exec(`
-		INSERT INTO menu_option_templates (id, created_by_business_id, option_type, default_title, default_icon, data_schema, description, is_system, created_at, updated_at)
+	_, err := db.Exec(`
+		INSERT OR IGNORE INTO menu_option_templates (id, created_by_business_id, option_type, default_title, default_icon, data_schema, description, is_system, created_at, updated_at)
 		VALUES (?, NULL, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`, "tpl_wifi_system", "wifi", "Join WiFi", "wifi", wifiSchema, "Allow customers to connect to your WiFi network")
 	if err != nil {
@@ -773,11 +762,22 @@ func seedSystemTemplates(db *sql.DB) error {
 	// URL template — allows businesses to link to menus, websites, social media, etc.
 	urlSchema := `{"type":"object","properties":{"url":{"type":"string"},"title":{"type":"string"}},"required":["url"]}`
 	_, err = db.Exec(`
-		INSERT INTO menu_option_templates (id, created_by_business_id, option_type, default_title, default_icon, data_schema, description, is_system, created_at, updated_at)
+		INSERT OR IGNORE INTO menu_option_templates (id, created_by_business_id, option_type, default_title, default_icon, data_schema, description, is_system, created_at, updated_at)
 		VALUES (?, NULL, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`, "tpl_url_system", "url", "View Menu", "link", urlSchema, "Link to your menu, website, or social media")
 	if err != nil {
 		return fmt.Errorf("failed to seed url template: %w", err)
+	}
+
+	// Product menu template — links a shop menu option to a product catalog menu.
+	// When customers tap a product_menu option, the app opens the ProductMenuView for browsing.
+	productMenuSchema := `{"type":"object","properties":{"productMenuId":{"type":"string"}},"required":["productMenuId"]}`
+	_, err = db.Exec(`
+		INSERT OR IGNORE INTO menu_option_templates (id, created_by_business_id, option_type, default_title, default_icon, data_schema, description, is_system, created_at, updated_at)
+		VALUES (?, NULL, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, "tpl_product_menu_system", "product_menu", "View Products", "menucard", productMenuSchema, "Show your product catalog to customers")
+	if err != nil {
+		return fmt.Errorf("failed to seed product_menu template: %w", err)
 	}
 
 	log.Printf("✅ System templates seeded successfully")

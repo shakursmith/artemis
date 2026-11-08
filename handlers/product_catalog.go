@@ -218,7 +218,7 @@ type modifierGroupResponse struct {
 	DisplayOrder  int                `json:"displayOrder"`
 	CreatedAt     string             `json:"createdAt"`
 	UpdatedAt     string             `json:"updatedAt"`
-	Modifiers     []modifierResponse `json:"modifiers,omitempty"`
+	Modifiers     []modifierResponse `json:"modifiers"`
 }
 
 type itemResponse struct {
@@ -228,14 +228,14 @@ type itemResponse struct {
 	Description     *string                 `json:"description,omitempty"`
 	PriceMinorUnits int                     `json:"priceMinorUnits"`
 	CurrencyCode    string                  `json:"currencyCode"`
-	ImageURLs       []string                `json:"imageUrls,omitempty"`
-	DietaryTags     []string                `json:"dietaryTags,omitempty"`
+	ImageURLs       []string                `json:"imageUrls"`
+	DietaryTags     []string                `json:"dietaryTags"`
 	IsAvailable     bool                    `json:"isAvailable"`
 	IsSoldOut       bool                    `json:"isSoldOut"`
 	DisplayOrder    int                     `json:"displayOrder"`
 	CreatedAt       string                  `json:"createdAt"`
 	UpdatedAt       string                  `json:"updatedAt"`
-	ModifierGroups  []modifierGroupResponse `json:"modifierGroups,omitempty"`
+	ModifierGroups  []modifierGroupResponse `json:"modifierGroups"`
 }
 
 type categoryResponse struct {
@@ -247,7 +247,7 @@ type categoryResponse struct {
 	DisplayOrder int            `json:"displayOrder"`
 	CreatedAt    string         `json:"createdAt"`
 	UpdatedAt    string         `json:"updatedAt"`
-	Items        []itemResponse `json:"items,omitempty"`
+	Items        []itemResponse `json:"items"`
 }
 
 type fullMenuResponse struct {
@@ -259,7 +259,7 @@ type fullMenuResponse struct {
 	DisplayOrder int                `json:"displayOrder"`
 	CreatedAt    string             `json:"createdAt"`
 	UpdatedAt    string             `json:"updatedAt"`
-	Categories   []categoryResponse `json:"categories,omitempty"`
+	Categories   []categoryResponse `json:"categories"`
 }
 
 // =============================================================================
@@ -2109,9 +2109,9 @@ func (h *ProductCatalogHandler) getItemsForCategory(categoryID string) ([]itemRe
 			return nil, err
 		}
 
-		// Deserialize JSON arrays
-		var imageURLs []string
-		var dietaryTags []string
+		// Deserialize JSON arrays, defaulting to empty slices so they serialize as [] not null
+		imageURLs := []string{}
+		dietaryTags := []string{}
 		if item.ImageURLs != nil {
 			json.Unmarshal([]byte(*item.ImageURLs), &imageURLs)
 		}
