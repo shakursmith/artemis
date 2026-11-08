@@ -1,0 +1,495 @@
+openapi: 3.0.0
+info:
+  title: Artemis Shop Config API
+  version: 1.0.0
+  description: |
+    Composite endpoint that returns everything the customer app needs to bootstrap
+    the in-shop experience in a single call: business branding, location hours/status,
+    enabled features, extras, and summary data for reviews and loyalty.
+
+    ## Motivation
+
+    Apollo currently needs 3-4 separate API calls to gather enough data to render the
+    in-shop view (business details, location info, loyalty program, review data). This
+    single composite endpoint reduces latency on cellular connections and keeps
+    feature-flag logic on the server side.
+
+    ## Data Sources
+
+    All underlying data already exists in Artemis's database — this endpoint aggregates
+    it from:
+    - **businesses** table: name, accent color, hero image, phone, website
+    - **locations** table: address, timezone, opening hours, special hours
+    - **loyalty_programs** table: program config (enabled, stamps required)
+    - **loyalty_memberships** table: customer's current stamp count (when customerId provided)
+    - **reviews** table: aggregate average rating and total review count
+    - **location_features** / **business config**: feature flags and extras
+
+    ## Computed Fields
+
+    - `isOpen`: Computed from `openingHours` + `specialHours` in the location's timezone
+    - `closesAt`: The next closing time formatted as a human-readable string (e.g. "6:00 PM"),
+      null if the location is currently closed
+    - `reviewSummary.averageRating`: Computed average of all review ratings for the business
+    - `loyaltySummary.currentStamps`: Reflects the requesting customer's membership if
+      `customerId` query param is provided
+
+servers:
+  - url: /api
+    description: Default API base path (configurable via API_BASE_PATH env var)
+
+paths:
+  /shop-config/{locationId}:
+    get:
+      summary: Get shop configuration for a location
+      description: |
+        Returns a composite payload with everything the customer app needs to
+        bootstrap the in-shop experience: business branding, location hours and
+        open/closed status, enabled features, extras, and summary data for reviews
+        and loyalty.
+
+        If the optional `customerId` query parameter is provided, the
+        `loyaltySummary.currentStamps` field will reflect that customer's loyalty
+        membership at this business. Without it, `currentStamps` is null.
+      operationId: getShopConfig
+      tags:
+        - Customer
+        - Public
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          description: UUID of the location to load shop config for
+          schema:
+            type: string
+            format: uuid
+          example: "b4d6f9c8-5e83-4c2f-8b9e-3d7f9e5c8a6d"
+
+        - name: customerId
+          in: query
+          required: false
+          description: |
+            Optional UUID of the requesting customer. When provided, the response
+            includes the customer's current loyalty stamp count in
+            `loyaltySummary.currentStamps`. Without this parameter, `currentStamps`
+            is null (the program info is still returned).
+          schema:
+            type: string
+            format: uuid
+          example: "d4e5f6a7-b8c9-0123-def1-234567890123"
+
+      responses:
+        '200':
+          description: Shop config retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopConfig'
+        '404':
+          description: Location not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    # =========================================================================
+    # Main Response Schema
+    # =========================================================================
+
+    ShopConfig:
+      type: object
+      description: |
+        Composite response containing everything needed to render the in-shop
+        experience. Aggregates data from businesses, locations, loyalty_programs,
+        loyalty_memberships, and reviews tables.
+      required:
+        - shopId
+        - businessId
+        - businessName
+        - isOpen
+        - orderModes
+        - features
+        - extras
+      properties:
+        # --- Identity (from locations + businesses tables) ---
+        shopId:
+          type: string
+          format: uuid
+          description: The location UUID (same as the path parameter locationId)
+          example: "b4d6f9c8-5e83-4c2f-8b9e-3d7f9e5c8a6d"
+        businessId:
+          type: string
+          format: uuid
+          description: UUID of the parent business (from locations.business_id)
+          example: "a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c"
+        businessName:
+          type: string
+          description: Business display name (from businesses.name)
+          example: "Brew & Bytes Coffee"
+
+        # --- Branding (from businesses table) ---
+        accentColor:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          nullable: true
+          description: Brand accent color in hex format (from businesses.accent_color)
+          example: "#8B4513"
+        heroImageUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to the hero/banner image (from businesses.hero_image_url)
+          example: "https://cdn.example.com/heroes/brew-bytes-interior.jpg"
+
+        # --- Open/Closed Status (computed from locations table) ---
+        isOpen:
+          type: boolean
+          description: |
+            Whether the location is currently open. Computed from openingHours and
+            specialHours in the location's timezone. Same logic as the existing
+            isOpenNow field on LocationDetail (see store-info.yaml).
+          example: true
+        closesAt:
+          type: string
+          nullable: true
+          description: |
+            Next closing time as a human-readable string (e.g. "6:00 PM") if the
+            location is currently open. Null if the location is currently closed.
+            Formatted in the location's timezone.
+          example: "6:00 PM"
+
+        # --- Contact & Address (from locations + businesses tables) ---
+        address:
+          $ref: '#/components/schemas/Address'
+        phone:
+          type: string
+          nullable: true
+          description: Business contact phone number (from businesses.phone)
+          example: "+14155551234"
+        website:
+          type: string
+          format: uri
+          nullable: true
+          description: Business website URL (from businesses.website)
+          example: "https://brewandbytes.com"
+
+        # --- Hours (from locations table, reuses store-info.yaml schema shape) ---
+        openingHours:
+          $ref: '#/components/schemas/OpeningHours'
+
+        # --- Order Modes (from location config) ---
+        orderModes:
+          type: array
+          description: |
+            Which ordering modes this location supports. Determines which order
+            flows are available to the customer in the app. Values come from
+            location-level configuration.
+          items:
+            type: string
+            enum:
+              - pickup
+              - dineIn
+          example: ["pickup", "dineIn"]
+
+        # --- Feature Flags (from location/business config) ---
+        features:
+          $ref: '#/components/schemas/Features'
+
+        # --- Extras (from location/business config) ---
+        extras:
+          type: array
+          description: |
+            Additional configurable capabilities for the location. Each extra has
+            a type (used as a key by the client), a human-readable label, and an
+            enabled flag. Extras allow the business to toggle optional features
+            like WiFi info, parking details, etc. without schema changes.
+          items:
+            $ref: '#/components/schemas/Extra'
+
+        # --- Review Summary (aggregated from reviews table) ---
+        reviewSummary:
+          $ref: '#/components/schemas/ReviewSummary'
+
+        # --- Loyalty Summary (from loyalty_programs + loyalty_memberships tables) ---
+        loyaltySummary:
+          $ref: '#/components/schemas/LoyaltySummary'
+
+    # =========================================================================
+    # Address (matches store-info.yaml Address schema)
+    # =========================================================================
+
+    Address:
+      type: object
+      nullable: true
+      description: |
+        Structured address with geocoding information. Matches the Address schema
+        from store-info.yaml (lines 434-485). Sourced from the locations table.
+      required:
+        - street
+        - city
+        - state
+        - postalCode
+        - country
+      properties:
+        street:
+          type: string
+          description: Street address
+          example: "123 Main St"
+        street2:
+          type: string
+          nullable: true
+          description: Additional address line (suite, unit, etc.)
+          example: "Suite 200"
+        city:
+          type: string
+          description: City name
+          example: "San Francisco"
+        state:
+          type: string
+          description: State or province code
+          example: "CA"
+        postalCode:
+          type: string
+          description: Postal/ZIP code
+          example: "94102"
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code
+          example: "US"
+        latitude:
+          type: number
+          format: double
+          nullable: true
+          description: Latitude for map directions
+          example: 37.7749
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          nullable: true
+          description: Longitude for map directions
+          example: -122.4194
+          minimum: -180
+          maximum: 180
+
+    # =========================================================================
+    # Opening Hours (matches store-info.yaml OpeningHours schema)
+    # =========================================================================
+
+    OpeningHours:
+      type: object
+      nullable: true
+      description: |
+        Weekly opening hours. Matches the OpeningHours schema from store-info.yaml.
+        Sourced from the locations table (opening_hours JSON column).
+      properties:
+        monday:
+          $ref: '#/components/schemas/DayHours'
+        tuesday:
+          $ref: '#/components/schemas/DayHours'
+        wednesday:
+          $ref: '#/components/schemas/DayHours'
+        thursday:
+          $ref: '#/components/schemas/DayHours'
+        friday:
+          $ref: '#/components/schemas/DayHours'
+        saturday:
+          $ref: '#/components/schemas/DayHours'
+        sunday:
+          $ref: '#/components/schemas/DayHours'
+
+    DayHours:
+      type: object
+      nullable: true
+      description: |
+        Opening hours for a single day. Null or omitted means closed all day.
+        Multiple ranges support split shifts (e.g., breakfast and dinner service).
+      properties:
+        ranges:
+          type: array
+          description: List of open time ranges for this day (empty array = closed)
+          items:
+            $ref: '#/components/schemas/TimeRange'
+
+    TimeRange:
+      type: object
+      required:
+        - open
+        - close
+      description: A single continuous open time range
+      properties:
+        open:
+          type: string
+          pattern: '^([0-1][0-9]|2[0-3]):[0-5][0-9]$'
+          description: Opening time in 24-hour HH:MM format
+          example: "09:00"
+        close:
+          type: string
+          pattern: '^([0-1][0-9]|2[0-3]):[0-5][0-9]$'
+          description: Closing time in 24-hour HH:MM format
+          example: "21:00"
+
+    # =========================================================================
+    # Features — boolean flags for major in-shop capabilities
+    # =========================================================================
+
+    Features:
+      type: object
+      description: |
+        Boolean flags indicating which major capabilities are enabled for this
+        location. The client uses these to show/hide entire sections of the
+        in-shop UI. Sourced from location or business configuration.
+      required:
+        - menuEnabled
+        - rewardsEnabled
+        - reviewsEnabled
+        - cartEnabled
+      properties:
+        menuEnabled:
+          type: boolean
+          description: Whether the product menu/catalog is available for browsing
+          example: true
+        rewardsEnabled:
+          type: boolean
+          description: Whether the loyalty/rewards program is active for this business
+          example: true
+        reviewsEnabled:
+          type: boolean
+          description: Whether customer reviews are enabled for this business
+          example: true
+        cartEnabled:
+          type: boolean
+          description: Whether the cart and ordering flow is available at this location
+          example: true
+
+    # =========================================================================
+    # Extras — extensible toggleable capabilities
+    # =========================================================================
+
+    Extra:
+      type: object
+      description: |
+        A single extra capability. Extras are an extension point so businesses
+        can advertise optional features (WiFi, parking, accessibility info, etc.)
+        without requiring schema changes. The `type` field acts as a stable key
+        for the client to match icons or UI treatments.
+      required:
+        - type
+        - label
+        - enabled
+      properties:
+        type:
+          type: string
+          description: |
+            Machine-readable type key. Used by the client to select icons and UI
+            treatments. New types can be added without a contract change.
+          enum:
+            - wifi
+            - parking
+            - accessibility
+            - petFriendly
+            - outdoorSeating
+            - liveMusic
+            - happyHour
+          example: "wifi"
+        label:
+          type: string
+          description: Human-readable label to display in the app
+          example: "Free WiFi"
+        enabled:
+          type: boolean
+          description: Whether this extra is currently active
+          example: true
+
+    # =========================================================================
+    # Review Summary — aggregated from reviews table
+    # =========================================================================
+
+    ReviewSummary:
+      type: object
+      nullable: true
+      description: |
+        Aggregated review data for the business. Null if the business has no
+        reviews yet. Computed from the reviews table by averaging all ratings
+        and counting total reviews for the business.
+      properties:
+        averageRating:
+          type: number
+          format: float
+          description: Average star rating across all reviews (1.0 - 5.0)
+          example: 4.3
+          minimum: 1.0
+          maximum: 5.0
+        totalReviews:
+          type: integer
+          description: Total number of reviews for the business
+          example: 127
+          minimum: 0
+      required:
+        - averageRating
+        - totalReviews
+
+    # =========================================================================
+    # Loyalty Summary — from loyalty_programs + loyalty_memberships tables
+    # =========================================================================
+
+    LoyaltySummary:
+      type: object
+      nullable: true
+      description: |
+        Summary of the loyalty program for this business and (optionally) the
+        requesting customer's membership status. Null if the business has no
+        loyalty program configured.
+
+        - `programEnabled` and `stampsRequired` come from the loyalty_programs table.
+        - `currentStamps` comes from the loyalty_memberships table and is only
+          populated when a `customerId` query parameter is provided and that
+          customer has an active membership. Otherwise it is null.
+      properties:
+        programEnabled:
+          type: boolean
+          description: Whether a loyalty program exists and is active for this business
+          example: true
+        stampsRequired:
+          type: integer
+          nullable: true
+          description: |
+            Number of stamps (points) required to earn a reward. Maps to
+            loyalty_programs.reward_threshold. Null if no program exists.
+          example: 10
+          minimum: 1
+        currentStamps:
+          type: integer
+          nullable: true
+          description: |
+            The requesting customer's current stamp count. Only populated when
+            the `customerId` query parameter is provided AND that customer has
+            an active membership. Null otherwise. Maps to
+            loyalty_memberships.points_balance.
+          example: 7
+          minimum: 0
+      required:
+        - programEnabled
+
+    # =========================================================================
+    # Error (matches convention from other contracts)
+    # =========================================================================
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Location not found"

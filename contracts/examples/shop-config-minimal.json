@@ -1,0 +1,60 @@
+{
+  "shopId": "e1f2a3b4-c5d6-7890-abcd-ef1234567890",
+  "businessId": "f2a3b4c5-d6e7-8901-bcde-f12345678901",
+  "businessName": "Corner Taco Stand",
+  "accentColor": null,
+  "heroImageUrl": null,
+  "isOpen": false,
+  "closesAt": null,
+  "address": {
+    "street": "456 Oak Ave",
+    "street2": null,
+    "city": "Austin",
+    "state": "TX",
+    "postalCode": "78701",
+    "country": "US",
+    "latitude": null,
+    "longitude": null
+  },
+  "phone": null,
+  "website": null,
+  "openingHours": {
+    "monday": {
+      "ranges": [
+        { "open": "11:00", "close": "15:00" }
+      ]
+    },
+    "tuesday": {
+      "ranges": [
+        { "open": "11:00", "close": "15:00" }
+      ]
+    },
+    "wednesday": {
+      "ranges": [
+        { "open": "11:00", "close": "15:00" }
+      ]
+    },
+    "thursday": {
+      "ranges": [
+        { "open": "11:00", "close": "15:00" }
+      ]
+    },
+    "friday": {
+      "ranges": [
+        { "open": "11:00", "close": "15:00" }
+      ]
+    },
+    "saturday": null,
+    "sunday": null
+  },
+  "orderModes": ["pickup"],
+  "features": {
+    "menuEnabled": true,
+    "rewardsEnabled": false,
+    "reviewsEnabled": false,
+    "cartEnabled": false
+  },
+  "extras": [],
+  "reviewSummary": null,
+  "loyaltySummary": null
+}
