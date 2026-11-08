@@ -8,6 +8,7 @@
   "closesAt": "6:00 PM",
   "address": {
     "street": "123 Main St",
+    "street2": "Suite 200",
     "city": "San Francisco",
     "state": "CA",
     "postalCode": "94102",

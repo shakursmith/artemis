@@ -231,31 +231,37 @@ components:
       nullable: true
       description: |
         Structured address with geocoding information. Matches the Address schema
-        from store-info.yaml. Sourced from the locations table.
+        from store-info.yaml (lines 434-485). Sourced from the locations table.
+      required:
+        - street
+        - city
+        - state
+        - postalCode
+        - country
       properties:
         street:
           type: string
-          nullable: true
           description: Street address
           example: "123 Main St"
-        city:
+        street2:
           type: string
           nullable: true
+          description: Additional address line (suite, unit, etc.)
+          example: "Suite 200"
+        city:
+          type: string
           description: City name
           example: "San Francisco"
         state:
           type: string
-          nullable: true
           description: State or province code
           example: "CA"
         postalCode:
           type: string
-          nullable: true
           description: Postal/ZIP code
           example: "94102"
         country:
           type: string
-          nullable: true
           description: ISO 3166-1 alpha-2 country code
           example: "US"
         latitude:
