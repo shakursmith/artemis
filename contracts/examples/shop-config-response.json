@@ -1,0 +1,100 @@
+{
+  "shopId": "b4d6f9c8-5e83-4c2f-8b9e-3d7f9e5c8a6d",
+  "businessId": "a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c",
+  "businessName": "Brew & Bytes Coffee",
+  "accentColor": "#8B4513",
+  "heroImageUrl": "https://cdn.example.com/heroes/brew-bytes-interior.jpg",
+  "isOpen": true,
+  "closesAt": "6:00 PM",
+  "address": {
+    "street": "123 Main St",
+    "city": "San Francisco",
+    "state": "CA",
+    "postalCode": "94102",
+    "country": "US",
+    "latitude": 37.7749,
+    "longitude": -122.4194
+  },
+  "phone": "+14155551234",
+  "website": "https://brewandbytes.com",
+  "openingHours": {
+    "monday": {
+      "ranges": [
+        { "open": "07:00", "close": "18:00" }
+      ]
+    },
+    "tuesday": {
+      "ranges": [
+        { "open": "07:00", "close": "18:00" }
+      ]
+    },
+    "wednesday": {
+      "ranges": [
+        { "open": "07:00", "close": "18:00" }
+      ]
+    },
+    "thursday": {
+      "ranges": [
+        { "open": "07:00", "close": "18:00" }
+      ]
+    },
+    "friday": {
+      "ranges": [
+        { "open": "07:00", "close": "21:00" }
+      ]
+    },
+    "saturday": {
+      "ranges": [
+        { "open": "08:00", "close": "21:00" }
+      ]
+    },
+    "sunday": {
+      "ranges": [
+        { "open": "08:00", "close": "16:00" }
+      ]
+    }
+  },
+  "orderModes": ["pickup", "dineIn"],
+  "features": {
+    "menuEnabled": true,
+    "rewardsEnabled": true,
+    "reviewsEnabled": true,
+    "cartEnabled": true
+  },
+  "extras": [
+    {
+      "type": "wifi",
+      "label": "Free WiFi",
+      "enabled": true
+    },
+    {
+      "type": "parking",
+      "label": "Street Parking",
+      "enabled": true
+    },
+    {
+      "type": "outdoorSeating",
+      "label": "Patio Seating",
+      "enabled": true
+    },
+    {
+      "type": "petFriendly",
+      "label": "Pet Friendly (Patio)",
+      "enabled": true
+    },
+    {
+      "type": "accessibility",
+      "label": "Wheelchair Accessible",
+      "enabled": true
+    }
+  ],
+  "reviewSummary": {
+    "averageRating": 4.3,
+    "totalReviews": 127
+  },
+  "loyaltySummary": {
+    "programEnabled": true,
+    "stampsRequired": 10,
+    "currentStamps": 7
+  }
+}
