@@ -85,6 +85,7 @@ func main() {
 	favoritesHandler := handlers.NewFavoritesHandler(database)
 	cartHandler := handlers.NewCartHandler(database)
 	orderHandler := handlers.NewOrderHandler(database)
+	shopConfigHandler := handlers.NewShopConfigHandler(database)
 
 	// Profile endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile", profileHandler.HandleCreateProfile)
@@ -248,6 +249,9 @@ func main() {
 	mux.HandleFunc("PUT "+cfg.APIBasePath+"/order/{orderId}/cancel", orderHandler.HandleCancelOrder)
 	mux.HandleFunc("PUT "+cfg.APIBasePath+"/order/{orderId}/status", orderHandler.HandleUpdateOrderStatus)
 	mux.HandleFunc("GET "+cfg.APIBasePath+"/location/{locationId}/orders/events", orderHandler.HandleOrderEventsSSE)
+
+	// Shop Config endpoint (composite in-shop bootstrap payload)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/shop-config/{locationId}", shopConfigHandler.HandleGetShopConfig)
 
 	// ==========================================================================
 	// Integration endpoints — External service control
@@ -444,6 +448,8 @@ func main() {
 	log.Printf("   - PUT    %s/order/{id}/cancel - Cancel order (customer)", cfg.APIBasePath)
 	log.Printf("   - PUT    %s/order/{id}/status - Update order status (business)", cfg.APIBasePath)
 	log.Printf("   - GET    %s/location/{id}/orders/events - SSE stream for order updates", cfg.APIBasePath)
+	log.Printf("  Shop Config (Composite Endpoint):")
+	log.Printf("   - GET    %s/shop-config/{locationId} - Get shop config (composite)", cfg.APIBasePath)
 	log.Printf("  Integrations:")
 	log.Printf("   - POST %s/lightbulb/toggle - Toggle lightbulb state", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)
