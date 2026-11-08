@@ -579,6 +579,15 @@ func RunMigrations(db *sql.DB) error {
 		`ALTER TABLE locations ADD COLUMN timezone TEXT`,
 		`ALTER TABLE locations ADD COLUMN opening_hours TEXT`,
 		`ALTER TABLE locations ADD COLUMN special_hours TEXT`,
+
+		// Shop config columns — added in Ticket ISE-003 for the composite shop-config endpoint.
+		// features_json stores feature flags as a JSON object on the business level.
+		// extras_json stores an array of extra capabilities on the business level.
+		// order_modes_json stores supported order modes on the location level.
+		// All have sensible defaults so existing rows work without explicit values.
+		`ALTER TABLE businesses ADD COLUMN features_json TEXT DEFAULT '{"menuEnabled":true,"rewardsEnabled":true,"reviewsEnabled":true,"cartEnabled":true}'`,
+		`ALTER TABLE businesses ADD COLUMN extras_json TEXT DEFAULT '[]'`,
+		`ALTER TABLE locations ADD COLUMN order_modes_json TEXT DEFAULT '["pickup","dineIn"]'`,
 	}
 	for _, alter := range alterMigrations {
 		_, err := db.Exec(alter)

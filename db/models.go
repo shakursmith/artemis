@@ -62,6 +62,8 @@ type Business struct {
 	LogoURL        *string   `json:"logoUrl,omitempty"`        // URL to business logo image
 	AccentColor    *string   `json:"accentColor,omitempty"`    // brand accent color in hex format (#RRGGBB)
 	HeroImageURL   *string   `json:"heroImageUrl,omitempty"`   // URL to hero/banner image for the business
+	FeaturesJSON   *string   `json:"featuresJson,omitempty"`   // JSON object of feature flags (ISE-003)
+	ExtrasJSON     *string   `json:"extrasJson,omitempty"`     // JSON array of extra capabilities (ISE-003)
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
 }
@@ -89,6 +91,7 @@ type Location struct {
 	Timezone      *string   `json:"timezone,omitempty"`      // IANA timezone identifier (e.g. "America/Los_Angeles")
 	OpeningHours  *string   `json:"openingHours,omitempty"`  // JSON blob following OpeningHours schema
 	SpecialHours  *string   `json:"specialHours,omitempty"`  // JSON array following SpecialHours schema
+	OrderModesJSON *string  `json:"orderModesJson,omitempty"` // JSON array of supported order modes (ISE-003)
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
 }
@@ -214,6 +217,81 @@ type SpecialHours struct {
 	Date   string    `json:"date"`   // date in YYYY-MM-DD format
 	Reason string    `json:"reason"` // reason for special hours (e.g., "Christmas Day")
 	Hours  *DayHours `json:"hours"`  // hours for this day (null means closed all day)
+}
+
+// =============================================================================
+// Shop Config Models (ISE-003)
+// =============================================================================
+// These structs represent the composite response from GET /api/shop-config/{locationId}.
+// The ShopConfig aggregates data from businesses, locations, loyalty_programs,
+// loyalty_memberships, and reviews tables into a single response.
+
+// ShopConfigAddress is the structured address portion of the shop config response.
+// Sourced from the locations table structured address fields.
+type ShopConfigAddress struct {
+	Street     string   `json:"street"`
+	Street2    *string  `json:"street2"`
+	City       string   `json:"city"`
+	State      string   `json:"state"`
+	PostalCode string   `json:"postalCode"`
+	Country    string   `json:"country"`
+	Latitude   *float64 `json:"latitude"`
+	Longitude  *float64 `json:"longitude"`
+}
+
+// ShopConfigFeatures represents boolean feature flags for the in-shop experience.
+// Sourced from the businesses.features_json column.
+type ShopConfigFeatures struct {
+	MenuEnabled    bool `json:"menuEnabled"`
+	RewardsEnabled bool `json:"rewardsEnabled"`
+	ReviewsEnabled bool `json:"reviewsEnabled"`
+	CartEnabled    bool `json:"cartEnabled"`
+}
+
+// ShopConfigExtra represents a single extra capability (e.g., wifi, parking).
+// Sourced from the businesses.extras_json column.
+type ShopConfigExtra struct {
+	Type    string `json:"type"`
+	Label   string `json:"label"`
+	Enabled bool   `json:"enabled"`
+}
+
+// ShopConfigReviewSummary holds aggregated review data for the business.
+// Computed from the reviews table (average rating + total count).
+type ShopConfigReviewSummary struct {
+	AverageRating float64 `json:"averageRating"`
+	TotalReviews  int     `json:"totalReviews"`
+}
+
+// ShopConfigLoyaltySummary holds loyalty program info and optionally the
+// requesting customer's stamp count. Sourced from loyalty_programs and
+// loyalty_memberships tables.
+type ShopConfigLoyaltySummary struct {
+	ProgramEnabled bool  `json:"programEnabled"`
+	StampsRequired *int  `json:"stampsRequired"` // null if no program
+	CurrentStamps  *int  `json:"currentStamps"`  // null if no customerId provided or no membership
+}
+
+// ShopConfig is the composite response for GET /api/shop-config/{locationId}.
+// It aggregates data from multiple tables into one payload so the client
+// can bootstrap the in-shop experience in a single API call.
+type ShopConfig struct {
+	ShopID         string                    `json:"shopId"`
+	BusinessID     string                    `json:"businessId"`
+	BusinessName   string                    `json:"businessName"`
+	AccentColor    *string                   `json:"accentColor"`
+	HeroImageURL   *string                   `json:"heroImageUrl"`
+	IsOpen         bool                      `json:"isOpen"`
+	ClosesAt       *string                   `json:"closesAt"`
+	Address        *ShopConfigAddress        `json:"address"`
+	Phone          *string                   `json:"phone"`
+	Website        *string                   `json:"website"`
+	OpeningHours   *OpeningHours             `json:"openingHours"`
+	OrderModes     []string                  `json:"orderModes"`
+	Features       ShopConfigFeatures        `json:"features"`
+	Extras         []ShopConfigExtra         `json:"extras"`
+	ReviewSummary  *ShopConfigReviewSummary  `json:"reviewSummary"`
+	LoyaltySummary *ShopConfigLoyaltySummary `json:"loyaltySummary"`
 }
 
 // =============================================================================
