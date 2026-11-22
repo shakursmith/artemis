@@ -87,6 +87,7 @@ func main() {
 	orderHandler := handlers.NewOrderHandler(database)
 	shopConfigHandler := handlers.NewShopConfigHandler(database)
 	reviewHandler := handlers.NewReviewHandler(database)
+	businessPhotosHandler := handlers.NewBusinessPhotosHandler(database)
 
 	// Profile endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile", profileHandler.HandleCreateProfile)
@@ -265,6 +266,9 @@ func main() {
 	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/review/{id}/reply", reviewHandler.HandleDeleteBusinessReply)
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/review/{id}/flag", reviewHandler.HandleFlagReview)
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/reviews/image-upload", reviewHandler.HandleImageUpload)
+
+	// Business photos endpoint — aggregates photos from reviews into a flat list
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/business/{businessId}/photos", businessPhotosHandler.HandleGetBusinessPhotos)
 
 	// ==========================================================================
 	// Integration endpoints — External service control
@@ -474,6 +478,7 @@ func main() {
 	log.Printf("   - DELETE %s/review/{id}/reply - Delete business reply", cfg.APIBasePath)
 	log.Printf("   - POST   %s/review/{id}/flag - Flag review", cfg.APIBasePath)
 	log.Printf("   - POST   %s/reviews/image-upload - Request review image upload URL", cfg.APIBasePath)
+	log.Printf("   - GET    %s/business/{id}/photos - List aggregated review photos", cfg.APIBasePath)
 	log.Printf("  Integrations:")
 	log.Printf("   - POST %s/lightbulb/toggle - Toggle lightbulb state", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)
