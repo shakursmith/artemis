@@ -62,6 +62,7 @@ type Business struct {
 	LogoURL        *string   `json:"logoUrl,omitempty"`        // URL to business logo image
 	AccentColor    *string   `json:"accentColor,omitempty"`    // brand accent color in hex format (#RRGGBB)
 	HeroImageURL   *string   `json:"heroImageUrl,omitempty"`   // URL to hero/banner image for the business
+	Description    *string   `json:"description,omitempty"`    // Short business description or tagline (max 200 chars)
 	FeaturesJSON   *string   `json:"featuresJson,omitempty"`   // JSON object of feature flags (ISE-003)
 	ExtrasJSON     *string   `json:"extrasJson,omitempty"`     // JSON array of extra capabilities (ISE-003)
 	CreatedAt      time.Time `json:"createdAt"`
@@ -279,6 +280,7 @@ type ShopConfig struct {
 	ShopID         string                    `json:"shopId"`
 	BusinessID     string                    `json:"businessId"`
 	BusinessName   string                    `json:"businessName"`
+	Description    *string                   `json:"description,omitempty"` // Short business description or tagline (max 200 chars)
 	AccentColor    *string                   `json:"accentColor"`
 	HeroImageURL   *string                   `json:"heroImageUrl"`
 	IsOpen         bool                      `json:"isOpen"`

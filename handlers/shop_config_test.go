@@ -35,6 +35,7 @@ type scBusinessOpts struct {
 	heroImageURL *string
 	phone        *string
 	website      *string
+	description  *string
 	featuresJSON *string
 	extrasJSON   *string
 }
@@ -50,6 +51,9 @@ func scWithPhone(p string) func(*scBusinessOpts) {
 }
 func scWithWebsite(w string) func(*scBusinessOpts) {
 	return func(o *scBusinessOpts) { o.website = &w }
+}
+func scWithDescription(d string) func(*scBusinessOpts) {
+	return func(o *scBusinessOpts) { o.description = &d }
 }
 func scWithFeaturesJSON(f string) func(*scBusinessOpts) {
 	return func(o *scBusinessOpts) { o.featuresJSON = &f }
@@ -70,11 +74,11 @@ func scCreateBusiness(t *testing.T, database *sql.DB, name string, opts ...func(
 	if err != nil {
 		t.Fatalf("Failed to create business: %v", err)
 	}
-	// Update branding and feature fields via raw SQL
+	// Update branding, description, and feature fields via raw SQL
 	now := time.Now().UTC()
 	_, err = database.Exec(
-		"UPDATE businesses SET accent_color = ?, hero_image_url = ?, phone = ?, website = ?, features_json = ?, extras_json = ?, updated_at = ? WHERE id = ?",
-		o.accentColor, o.heroImageURL, o.phone, o.website, o.featuresJSON, o.extrasJSON, now, b.ID,
+		"UPDATE businesses SET accent_color = ?, hero_image_url = ?, phone = ?, website = ?, description = ?, features_json = ?, extras_json = ?, updated_at = ? WHERE id = ?",
+		o.accentColor, o.heroImageURL, o.phone, o.website, o.description, o.featuresJSON, o.extrasJSON, now, b.ID,
 	)
 	if err != nil {
 		t.Fatalf("Failed to update business: %v", err)
@@ -679,5 +683,71 @@ func TestGetShopConfig_ReviewSummary(t *testing.T) {
 	}
 	if config.ReviewSummary.AverageRating != 4.0 {
 		t.Errorf("expected average rating 4.0, got %f", config.ReviewSummary.AverageRating)
+	}
+}
+
+// TestGetShopConfig_WithDescription tests that the description field from the
+// business is returned in the shop config response when set.
+func TestGetShopConfig_WithDescription(t *testing.T) {
+	h, database := setupTestShopConfigHandler(t)
+
+	businessID := scCreateBusiness(t, database, "Described Shop",
+		scWithDescription("Specialty coffee & fresh pastries since 2019"),
+	)
+	locationID := scCreateLocation(t, database, businessID, "Main",
+		scWithAddress("7 Test St", "Test City", "TS", "00000", "US"),
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/shop-config/"+locationID, nil)
+	req.SetPathValue("locationId", locationID)
+	w := httptest.NewRecorder()
+
+	h.HandleGetShopConfig(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var config db.ShopConfig
+	if err := json.NewDecoder(w.Body).Decode(&config); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if config.Description == nil {
+		t.Fatal("expected description to be non-nil")
+	}
+	if *config.Description != "Specialty coffee & fresh pastries since 2019" {
+		t.Errorf("expected description 'Specialty coffee & fresh pastries since 2019', got '%s'", *config.Description)
+	}
+}
+
+// TestGetShopConfig_WithoutDescription tests that the description field is
+// omitted (nil) when not set on the business.
+func TestGetShopConfig_WithoutDescription(t *testing.T) {
+	h, database := setupTestShopConfigHandler(t)
+
+	// Create a business without a description
+	businessID := scCreateBusiness(t, database, "No Description Shop")
+	locationID := scCreateLocation(t, database, businessID, "Main",
+		scWithAddress("8 Test St", "Test City", "TS", "00000", "US"),
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/shop-config/"+locationID, nil)
+	req.SetPathValue("locationId", locationID)
+	w := httptest.NewRecorder()
+
+	h.HandleGetShopConfig(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var config db.ShopConfig
+	if err := json.NewDecoder(w.Body).Decode(&config); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if config.Description != nil {
+		t.Errorf("expected nil description when not set, got '%s'", *config.Description)
 	}
 }

@@ -995,7 +995,7 @@ func TestUpdateBusiness(t *testing.T) {
 	created, _ := CreateBusiness(database, "Old Cafe", &ownerName)
 
 	newOwner := "Bob"
-	updated, err := UpdateBusiness(database, created.ID, "New Cafe", &newOwner, nil, nil, nil, nil, nil, nil)
+	updated, err := UpdateBusiness(database, created.ID, "New Cafe", &newOwner, nil, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -1014,7 +1014,7 @@ func TestUpdateBusiness(t *testing.T) {
 func TestUpdateBusinessNotFound(t *testing.T) {
 	database := setupTestDB(t)
 
-	_, err := UpdateBusiness(database, "nonexistent", "Name", nil, nil, nil, nil, nil, nil, nil)
+	_, err := UpdateBusiness(database, "nonexistent", "Name", nil, nil, nil, nil, nil, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error for nonexistent business, got nil")
 	}

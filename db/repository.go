@@ -506,8 +506,8 @@ func CreateBusiness(db *sql.DB, name string, ownerName *string) (*Business, erro
 func GetBusiness(db *sql.DB, id string) (*Business, error) {
 	var b Business
 	err := db.QueryRow(
-		"SELECT id, name, owner_name, welcome_message, website, phone, logo_url, accent_color, hero_image_url, features_json, extras_json, created_at, updated_at FROM businesses WHERE id = ?", id,
-	).Scan(&b.ID, &b.Name, &b.OwnerName, &b.WelcomeMessage, &b.Website, &b.Phone, &b.LogoURL, &b.AccentColor, &b.HeroImageURL, &b.FeaturesJSON, &b.ExtrasJSON, &b.CreatedAt, &b.UpdatedAt)
+		"SELECT id, name, owner_name, welcome_message, website, phone, logo_url, accent_color, hero_image_url, description, features_json, extras_json, created_at, updated_at FROM businesses WHERE id = ?", id,
+	).Scan(&b.ID, &b.Name, &b.OwnerName, &b.WelcomeMessage, &b.Website, &b.Phone, &b.LogoURL, &b.AccentColor, &b.HeroImageURL, &b.Description, &b.FeaturesJSON, &b.ExtrasJSON, &b.CreatedAt, &b.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("business not found: %s", id)
 	}
@@ -520,7 +520,7 @@ func GetBusiness(db *sql.DB, id string) (*Business, error) {
 // ListBusinesses returns all businesses in the database.
 // Mainly useful for development and debugging.
 func ListBusinesses(db *sql.DB) ([]Business, error) {
-	rows, err := db.Query("SELECT id, name, owner_name, welcome_message, website, phone, logo_url, accent_color, hero_image_url, features_json, extras_json, created_at, updated_at FROM businesses ORDER BY created_at ASC")
+	rows, err := db.Query("SELECT id, name, owner_name, welcome_message, website, phone, logo_url, accent_color, hero_image_url, description, features_json, extras_json, created_at, updated_at FROM businesses ORDER BY created_at ASC")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list businesses: %w", err)
 	}
@@ -529,7 +529,7 @@ func ListBusinesses(db *sql.DB) ([]Business, error) {
 	var businesses []Business
 	for rows.Next() {
 		var b Business
-		if err := rows.Scan(&b.ID, &b.Name, &b.OwnerName, &b.WelcomeMessage, &b.Website, &b.Phone, &b.LogoURL, &b.AccentColor, &b.HeroImageURL, &b.FeaturesJSON, &b.ExtrasJSON, &b.CreatedAt, &b.UpdatedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.Name, &b.OwnerName, &b.WelcomeMessage, &b.Website, &b.Phone, &b.LogoURL, &b.AccentColor, &b.HeroImageURL, &b.Description, &b.FeaturesJSON, &b.ExtrasJSON, &b.CreatedAt, &b.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan business row: %w", err)
 		}
 		businesses = append(businesses, b)
@@ -540,11 +540,11 @@ func ListBusinesses(db *sql.DB) ([]Business, error) {
 // UpdateBusiness changes the name, owner name, and branding fields of an existing business.
 // All fields are updated together; use nil for optional fields to leave them unchanged would require
 // a different approach, but for simplicity we update all fields as provided in the contract.
-func UpdateBusiness(db *sql.DB, id string, name string, ownerName *string, welcomeMessage *string, website *string, phone *string, logoURL *string, accentColor *string, heroImageURL *string) (*Business, error) {
+func UpdateBusiness(db *sql.DB, id string, name string, ownerName *string, welcomeMessage *string, website *string, phone *string, logoURL *string, accentColor *string, heroImageURL *string, description *string) (*Business, error) {
 	now := time.Now().UTC()
 	result, err := db.Exec(
-		"UPDATE businesses SET name = ?, owner_name = ?, welcome_message = ?, website = ?, phone = ?, logo_url = ?, accent_color = ?, hero_image_url = ?, updated_at = ? WHERE id = ?",
-		name, ownerName, welcomeMessage, website, phone, logoURL, accentColor, heroImageURL, now, id,
+		"UPDATE businesses SET name = ?, owner_name = ?, welcome_message = ?, website = ?, phone = ?, logo_url = ?, accent_color = ?, hero_image_url = ?, description = ?, updated_at = ? WHERE id = ?",
+		name, ownerName, welcomeMessage, website, phone, logoURL, accentColor, heroImageURL, description, now, id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update business: %w", err)
@@ -1721,6 +1721,7 @@ func GetShopConfig(db *sql.DB, locationID string, customerID *string) (*ShopConf
 		ShopID:         location.ID,
 		BusinessID:     business.ID,
 		BusinessName:   business.Name,
+		Description:    business.Description,
 		AccentColor:    business.AccentColor,
 		HeroImageURL:   business.HeroImageURL,
 		IsOpen:         isOpen,
