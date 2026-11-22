@@ -86,6 +86,7 @@ func main() {
 	cartHandler := handlers.NewCartHandler(database)
 	orderHandler := handlers.NewOrderHandler(database)
 	shopConfigHandler := handlers.NewShopConfigHandler(database)
+	reviewHandler := handlers.NewReviewHandler(database)
 
 	// Profile endpoints
 	mux.HandleFunc("POST "+cfg.APIBasePath+"/profile", profileHandler.HandleCreateProfile)
@@ -252,6 +253,18 @@ func main() {
 
 	// Shop Config endpoint (composite in-shop bootstrap payload)
 	mux.HandleFunc("GET "+cfg.APIBasePath+"/shop-config/{locationId}", shopConfigHandler.HandleGetShopConfig)
+
+	// Review endpoints (shop mode) — customer reviews for businesses
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/business/{businessId}/reviews", reviewHandler.HandleCreateReview)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/review/{id}", reviewHandler.HandleGetReview)
+	mux.HandleFunc("PUT "+cfg.APIBasePath+"/review/{id}", reviewHandler.HandleUpdateReview)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/review/{id}", reviewHandler.HandleDeleteReview)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/customer/{customerId}/reviews", reviewHandler.HandleListCustomerReviews)
+	mux.HandleFunc("GET "+cfg.APIBasePath+"/business/{businessId}/reviews", reviewHandler.HandleListBusinessReviews)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/review/{id}/reply", reviewHandler.HandleAddBusinessReply)
+	mux.HandleFunc("DELETE "+cfg.APIBasePath+"/review/{id}/reply", reviewHandler.HandleDeleteBusinessReply)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/review/{id}/flag", reviewHandler.HandleFlagReview)
+	mux.HandleFunc("POST "+cfg.APIBasePath+"/reviews/image-upload", reviewHandler.HandleImageUpload)
 
 	// ==========================================================================
 	// Integration endpoints — External service control
@@ -450,6 +463,17 @@ func main() {
 	log.Printf("   - GET    %s/location/{id}/orders/events - SSE stream for order updates", cfg.APIBasePath)
 	log.Printf("  Shop Config (Composite Endpoint):")
 	log.Printf("   - GET    %s/shop-config/{locationId} - Get shop config (composite)", cfg.APIBasePath)
+	log.Printf("  Reviews (Shop Mode):")
+	log.Printf("   - POST   %s/business/{id}/reviews - Create review", cfg.APIBasePath)
+	log.Printf("   - GET    %s/review/{id} - Get review", cfg.APIBasePath)
+	log.Printf("   - PUT    %s/review/{id} - Update review (text/photos only)", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/review/{id} - Delete review", cfg.APIBasePath)
+	log.Printf("   - GET    %s/customer/{id}/reviews - List customer's reviews", cfg.APIBasePath)
+	log.Printf("   - GET    %s/business/{id}/reviews - List business reviews (public)", cfg.APIBasePath)
+	log.Printf("   - POST   %s/review/{id}/reply - Add business reply", cfg.APIBasePath)
+	log.Printf("   - DELETE %s/review/{id}/reply - Delete business reply", cfg.APIBasePath)
+	log.Printf("   - POST   %s/review/{id}/flag - Flag review", cfg.APIBasePath)
+	log.Printf("   - POST   %s/reviews/image-upload - Request review image upload URL", cfg.APIBasePath)
 	log.Printf("  Integrations:")
 	log.Printf("   - POST %s/lightbulb/toggle - Toggle lightbulb state", cfg.APIBasePath)
 	log.Printf("   - GET  %s/govee/devices - List all Govee devices", cfg.APIBasePath)
