@@ -387,7 +387,7 @@ func TestGetBusiness_IncludesBrandingFields(t *testing.T) {
 	heroImageURL := "https://cdn.example.com/hero.jpg"
 
 	business, _ := db.CreateBusiness(database, "Branded Cafe", &ownerName)
-	db.UpdateBusiness(database, business.ID, "Branded Cafe", &ownerName, &welcomeMsg, &website, &phone, &logoURL, &accentColor, &heroImageURL)
+	db.UpdateBusiness(database, business.ID, "Branded Cafe", &ownerName, &welcomeMsg, &website, &phone, &logoURL, &accentColor, &heroImageURL, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/business/"+business.ID, nil)
 	req.SetPathValue("id", business.ID)
@@ -406,5 +406,175 @@ func TestGetBusiness_IncludesBrandingFields(t *testing.T) {
 	}
 	if resp.AccentColor == nil || *resp.AccentColor != "#FF5733" {
 		t.Errorf("expected accent color in GET response, got %v", resp.AccentColor)
+	}
+}
+
+// =============================================================================
+// Business Description Tests (ISE-015)
+// =============================================================================
+
+func TestCreateBusiness_WithDescription(t *testing.T) {
+	h, _ := setupTestBusinessHandler(t)
+
+	body := `{"name": "Taco Palace", "description": "Family-owned taqueria in the heart of downtown"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/business", bytes.NewBufferString(body))
+	w := httptest.NewRecorder()
+
+	h.HandleCreateBusiness(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp db.Business
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Description == nil || *resp.Description != "Family-owned taqueria in the heart of downtown" {
+		t.Errorf("expected description set, got %v", resp.Description)
+	}
+}
+
+func TestCreateBusiness_DescriptionTooLong(t *testing.T) {
+	h, _ := setupTestBusinessHandler(t)
+
+	// Create a description longer than 200 characters
+	longDesc := ""
+	for i := 0; i < 201; i++ {
+		longDesc += "x"
+	}
+
+	body := `{"name": "Taco Palace", "description": "` + longDesc + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/business", bytes.NewBufferString(body))
+	w := httptest.NewRecorder()
+
+	h.HandleCreateBusiness(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for description over 200 chars, got %d", w.Code)
+	}
+}
+
+func TestUpdateBusiness_WithDescription(t *testing.T) {
+	h, database := setupTestBusinessHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Old Name", nil)
+
+	body := `{"name": "Old Name", "description": "Specialty coffee & fresh pastries since 2019"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/business/"+business.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", business.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateBusiness(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp db.Business
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Description == nil || *resp.Description != "Specialty coffee & fresh pastries since 2019" {
+		t.Errorf("expected description set, got %v", resp.Description)
+	}
+}
+
+func TestUpdateBusiness_DescriptionTooLong(t *testing.T) {
+	h, database := setupTestBusinessHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Coffee Shop", nil)
+
+	// Create a description longer than 200 characters
+	longDesc := ""
+	for i := 0; i < 201; i++ {
+		longDesc += "x"
+	}
+
+	body := `{"name": "Coffee Shop", "description": "` + longDesc + `"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/business/"+business.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", business.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateBusiness(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for description over 200 chars, got %d", w.Code)
+	}
+}
+
+func TestUpdateBusiness_DescriptionExactly200Chars(t *testing.T) {
+	h, database := setupTestBusinessHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Coffee Shop", nil)
+
+	// Create a description exactly 200 characters — should succeed
+	desc200 := ""
+	for i := 0; i < 200; i++ {
+		desc200 += "y"
+	}
+
+	body := `{"name": "Coffee Shop", "description": "` + desc200 + `"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/business/"+business.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", business.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateBusiness(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for 200-char description, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp db.Business
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Description == nil || len(*resp.Description) != 200 {
+		t.Errorf("expected 200-char description, got length %d", len(*resp.Description))
+	}
+}
+
+func TestUpdateBusiness_ClearDescription(t *testing.T) {
+	h, database := setupTestBusinessHandler(t)
+
+	// Create a business with a description, then clear it
+	business, _ := db.CreateBusiness(database, "Coffee Shop", nil)
+	desc := "A cool shop"
+	db.UpdateBusiness(database, business.ID, "Coffee Shop", nil, nil, nil, nil, nil, nil, nil, &desc)
+
+	// Update with null description to clear it
+	body := `{"name": "Coffee Shop"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/business/"+business.ID, bytes.NewBufferString(body))
+	req.SetPathValue("id", business.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleUpdateBusiness(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp db.Business
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Description != nil {
+		t.Errorf("expected nil description after clearing, got %v", resp.Description)
+	}
+}
+
+func TestGetBusiness_IncludesDescription(t *testing.T) {
+	h, database := setupTestBusinessHandler(t)
+
+	business, _ := db.CreateBusiness(database, "Described Cafe", nil)
+	desc := "Best coffee in town"
+	db.UpdateBusiness(database, business.ID, "Described Cafe", nil, nil, nil, nil, nil, nil, nil, &desc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/business/"+business.ID, nil)
+	req.SetPathValue("id", business.ID)
+	w := httptest.NewRecorder()
+
+	h.HandleGetBusiness(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp businessDetailResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Description == nil || *resp.Description != "Best coffee in town" {
+		t.Errorf("expected description in GET response, got %v", resp.Description)
 	}
 }

@@ -26,8 +26,9 @@ func NewBusinessHandler(database *sql.DB) *BusinessHandler {
 
 // createBusinessRequest is the JSON body for POST /api/business
 type createBusinessRequest struct {
-	Name      string  `json:"name"`
-	OwnerName *string `json:"ownerName,omitempty"`
+	Name        string  `json:"name"`
+	OwnerName   *string `json:"ownerName,omitempty"`
+	Description *string `json:"description,omitempty"` // Short business description (max 200 chars)
 }
 
 // businessDetailResponse is the enriched business response that includes
@@ -36,6 +37,7 @@ type businessDetailResponse struct {
 	ID             string        `json:"id"`
 	Name           string        `json:"name"`
 	OwnerName      *string       `json:"ownerName,omitempty"`
+	Description    *string       `json:"description,omitempty"`
 	WelcomeMessage *string       `json:"welcomeMessage,omitempty"`
 	Website        *string       `json:"website,omitempty"`
 	Phone          *string       `json:"phone,omitempty"`
@@ -51,6 +53,7 @@ type businessDetailResponse struct {
 type updateBusinessRequest struct {
 	Name           string  `json:"name"`
 	OwnerName      *string `json:"ownerName,omitempty"`
+	Description    *string `json:"description,omitempty"` // Short business description (max 200 chars)
 	WelcomeMessage *string `json:"welcomeMessage,omitempty"`
 	Website        *string `json:"website,omitempty"`
 	Phone          *string `json:"phone,omitempty"`
@@ -82,12 +85,29 @@ func (h *BusinessHandler) HandleCreateBusiness(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Validate description length if provided (max 200 characters)
+	if req.Description != nil && len(*req.Description) > 200 {
+		writeError(w, http.StatusBadRequest, "Description must be 200 characters or less")
+		return
+	}
+
 	// Create the business in the database
 	business, err := db.CreateBusiness(h.DB, req.Name, req.OwnerName)
 	if err != nil {
 		log.Printf("❌ Business create failed: %v", err)
 		writeError(w, http.StatusInternalServerError, "Failed to create business")
 		return
+	}
+
+	// If a description was provided, persist it via an update since CreateBusiness
+	// doesn't accept all optional fields.
+	if req.Description != nil {
+		business, err = db.UpdateBusiness(h.DB, business.ID, business.Name, business.OwnerName, business.WelcomeMessage, business.Website, business.Phone, business.LogoURL, business.AccentColor, business.HeroImageURL, req.Description)
+		if err != nil {
+			log.Printf("❌ Business create: failed to set description: %v", err)
+			writeError(w, http.StatusInternalServerError, "Failed to create business")
+			return
+		}
 	}
 
 	log.Printf("🏢 Created business: %s (id: %s)", business.Name, business.ID)
@@ -134,6 +154,7 @@ func (h *BusinessHandler) HandleGetBusiness(w http.ResponseWriter, r *http.Reque
 		ID:             business.ID,
 		Name:           business.Name,
 		OwnerName:      business.OwnerName,
+		Description:    business.Description,
 		WelcomeMessage: business.WelcomeMessage,
 		Website:        business.Website,
 		Phone:          business.Phone,
@@ -187,8 +208,14 @@ func (h *BusinessHandler) HandleUpdateBusiness(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Validate description length if provided (max 200 characters)
+	if req.Description != nil && len(*req.Description) > 200 {
+		writeError(w, http.StatusBadRequest, "Description must be 200 characters or less")
+		return
+	}
+
 	// Update the business
-	business, err := db.UpdateBusiness(h.DB, id, req.Name, req.OwnerName, req.WelcomeMessage, req.Website, req.Phone, req.LogoURL, req.AccentColor, req.HeroImageURL)
+	business, err := db.UpdateBusiness(h.DB, id, req.Name, req.OwnerName, req.WelcomeMessage, req.Website, req.Phone, req.LogoURL, req.AccentColor, req.HeroImageURL, req.Description)
 	if err != nil {
 		if isNotFound(err) {
 			writeError(w, http.StatusNotFound, "Business not found")
