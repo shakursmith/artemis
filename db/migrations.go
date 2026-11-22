@@ -588,6 +588,10 @@ func RunMigrations(db *sql.DB) error {
 		`ALTER TABLE businesses ADD COLUMN features_json TEXT DEFAULT '{"menuEnabled":true,"rewardsEnabled":true,"reviewsEnabled":true,"cartEnabled":true}'`,
 		`ALTER TABLE businesses ADD COLUMN extras_json TEXT DEFAULT '[]'`,
 		`ALTER TABLE locations ADD COLUMN order_modes_json TEXT DEFAULT '["pickup","dineIn"]'`,
+
+		// description stores a short business tagline or description (max 200 chars).
+		// Added in Ticket ISE-015 so businesses can display a description below their name.
+		`ALTER TABLE businesses ADD COLUMN description TEXT`,
 	}
 	for _, alter := range alterMigrations {
 		_, err := db.Exec(alter)
