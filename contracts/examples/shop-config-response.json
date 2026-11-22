@@ -2,6 +2,7 @@
   "shopId": "b4d6f9c8-5e83-4c2f-8b9e-3d7f9e5c8a6d",
   "businessId": "a3c5e8b9-4f72-4b1e-9a8d-2c6f8e4b9a7c",
   "businessName": "Brew & Bytes Coffee",
+  "description": "Specialty coffee & fresh pastries since 2019",
   "accentColor": "#8B4513",
   "heroImageUrl": "https://cdn.example.com/heroes/brew-bytes-interior.jpg",
   "isOpen": true,

@@ -18,7 +18,7 @@ info:
 
     All underlying data already exists in Artemis's database — this endpoint aggregates
     it from:
-    - **businesses** table: name, accent color, hero image, phone, website
+    - **businesses** table: name, description, accent color, hero image, phone, website
     - **locations** table: address, timezone, opening hours, special hours
     - **loyalty_programs** table: program config (enabled, stamps required)
     - **loyalty_memberships** table: customer's current stamp count (when customerId provided)
@@ -134,6 +134,12 @@ components:
           type: string
           description: Business display name (from businesses.name)
           example: "Brew & Bytes Coffee"
+        description:
+          type: string
+          maxLength: 200
+          nullable: true
+          description: Short business description or tagline (from businesses.description)
+          example: "Specialty coffee & fresh pastries since 2019"
 
         # --- Branding (from businesses table) ---
         accentColor:
